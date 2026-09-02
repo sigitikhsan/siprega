@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '419')
+@section('title', 'Sesi telah berakhir')
+@section('message', 'Demi keamanan, silakan masuk kembali untuk melanjutkan aktivitas Anda.')
+@section('action', route('login'))
+@section('button', 'Masuk kembali')

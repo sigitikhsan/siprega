@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '404')
+@section('title', 'Halaman tidak ditemukan')
+@section('message', 'Alamat yang Anda buka tidak tersedia atau sudah dipindahkan.')
+@section('action', url('/'))
+@section('button', 'Kembali ke halaman utama')

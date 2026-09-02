@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '429')
+@section('title', 'Terlalu banyak permintaan')
+@section('message', 'Sistem menerima terlalu banyak aksi. Tunggu beberapa saat, lalu coba kembali.')
+@section('action', url()->previous())
+@section('button', 'Coba kembali')

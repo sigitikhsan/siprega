@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '503')
+@section('title', 'Layanan sedang dalam pemeliharaan')
+@section('message', 'SiHadir sedang diperbarui. Silakan akses kembali beberapa saat lagi.')
+@section('action', url('/'))
+@section('button', 'Muat ulang')

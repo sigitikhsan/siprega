@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Attendance extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'employee_id',
+        'location_id',
+        'work_schedule_id',
+        'shift_assignment_id',
+        'attendance_date',
+
+        'check_in',
+        'check_in_latitude',
+        'check_in_longitude',
+        'check_in_accuracy',
+        'check_in_distance',
+        'check_in_captured_at',
+        'check_in_location_suspicious',
+        'check_in_risk_note',
+        'check_in_status',
+        'late_reason',
+
+        'check_out',
+        'check_out_status',
+        'early_checkout_reason',
+        'check_out_latitude',
+        'check_out_longitude',
+        'check_out_accuracy',
+        'check_out_distance',
+        'check_out_captured_at',
+        'check_out_location_suspicious',
+        'check_out_risk_note',
+    ];
+
+    protected $casts = [
+        'attendance_date' => 'date',
+        'check_in' => 'datetime',
+        'check_out' => 'datetime',
+        'check_in_captured_at' => 'datetime',
+        'check_out_captured_at' => 'datetime',
+        'check_in_location_suspicious' => 'boolean',
+        'check_out_location_suspicious' => 'boolean',
+        'is_within_radius' => 'boolean',
+    ];
+
+    /**
+     * Attendance dimiliki oleh satu Employee.
+     */
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * Attendance menggunakan satu Location.
+     */
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function workSchedule()
+    {
+        return $this->belongsTo(WorkSchedule::class);
+    }
+
+    public function shiftAssignment()
+    {
+        return $this->belongsTo(EmployeeShiftAssignment::class);
+    }
+
+    /**
+     * Attendance dapat memiliki banyak riwayat koreksi.
+     */
+    public function corrections()
+    {
+        return $this->hasMany(AttendanceCorrection::class);
+    }
+}
