@@ -3,61 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance;
-use App\Models\Employee;
-use App\Models\LeaveRequest;
+use App\Services\AdminDashboardData;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(AdminDashboardData $dashboardData)
     {
-        $today = now()->toDateString();
-
-        $statistics = [
-            'active_employees' => Employee::whereHas('user', function ($query) {
-                $query->where('status', 'active');
-            })->count(),
-            'attendance_today' => Attendance::whereDate('attendance_date', $today)
-                ->whereNotNull('check_in')
-                ->count(),
-            'late_today' => Attendance::whereDate('attendance_date', $today)
-                ->where('check_in_status', 'late')
-                ->count(),
-            'pending_leave_requests' => LeaveRequest::where('status', 'pending')->count(),
-        ];
-
-        $recentAttendances = Attendance::with(['employee.user', 'location'])
-            ->latest('check_in')
-            ->limit(6)
-            ->get();
-
-        $recentLeaveRequests = LeaveRequest::with('employee.user')
-            ->where('status', 'pending')
-            ->latest()
-            ->limit(5)
-            ->get();
-
-        $chartStart = now()->startOfDay()->subDays(6);
-        $attendanceByDate = Attendance::whereDate('attendance_date', '>=', $chartStart->toDateString())
-            ->whereNotNull('check_in')
-            ->get(['attendance_date', 'check_in_status'])
-            ->groupBy(function ($attendance) {
-                return $attendance->attendance_date->toDateString();
-            });
-
-        $attendanceChart = collect(range(0, 6))->map(function ($offset) use ($chartStart, $attendanceByDate) {
-            $date = $chartStart->copy()->addDays($offset);
-            $items = $attendanceByDate->get($date->toDateString(), collect());
-
-            return [
-                'date' => $date->toDateString(),
-                'day' => $date->locale('id')->translatedFormat('D'),
-                'label' => $date->translatedFormat('d M'),
-                'present' => $items->where('check_in_status', 'present')->count(),
-                'late' => $items->where('check_in_status', 'late')->count(),
-                'total' => $items->count(),
-            ];
-        });
+        $statistics = $dashboardData->statistics();
+        $recentAttendances = $dashboardData->recentAttendances();
+        $recentLeaveRequests = $dashboardData->recentLeaveRequests();
+        $attendanceChart = $dashboardData->attendanceChart();
         $chartMaximum = max(1, (int) $attendanceChart->max('total'));
         $chartTotals = [
             'present' => $attendanceChart->sum('present'),
@@ -74,4 +30,41 @@ class DashboardController extends Controller
             'chartTotals'
         ));
     }
+
+    public function live(Request $request, AdminDashboardData $dashboardData)
+    {
+        $payload = [
+            'statistics' => $dashboardData->statistics(),
+            'recent_attendances' => $dashboardData->recentAttendances()->map(function ($attendance) {
+                return [
+                    'name' => $attendance->employee->user->name,
+                    'location' => optional($attendance->location)->name ?: '-',
+                    'time' => optional($attendance->check_in)->format('H:i') ?: '-',
+                    'date' => $attendance->attendance_date->format('d/m/Y'),
+                    'url' => route('admin.attendances.show', $attendance),
+                ];
+            })->values(),
+            'recent_leave_requests' => $dashboardData->recentLeaveRequests()->map(function ($leaveRequest) {
+                return [
+                    'name' => $leaveRequest->employee->user->name,
+                    'summary' => ($leaveRequest->type === 'sick' ? 'Sakit' : 'Izin').' · '.$leaveRequest->duration.' hari',
+                    'date' => $leaveRequest->start_date->format('d/m/Y'),
+                    'url' => route('admin.leave-requests.show', $leaveRequest),
+                ];
+            })->values(),
+            'updated_at' => now()->toIso8601String(),
+        ];
+
+        if ($request->boolean('chart')) {
+            $attendanceChart = $dashboardData->attendanceChart();
+            $payload['chart'] = [
+                'labels' => $attendanceChart->pluck('label')->values(),
+                'present' => $attendanceChart->pluck('present')->values(),
+                'late' => $attendanceChart->pluck('late')->values(),
+            ];
+        }
+
+        return response()->json($payload);
+    }
+
 }

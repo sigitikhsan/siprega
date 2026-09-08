@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\WorkSchedule;
+use App\Services\AdminDashboardData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -63,6 +64,7 @@ class EmployeeController extends Controller
 
             return $user->employee()->create($this->employeeData($validated));
         });
+        app(AdminDashboardData::class)->forgetAll();
 
         return redirect()->route('admin.employees.index')
             ->with('success', 'Data pegawai berhasil ditambahkan.');
@@ -103,6 +105,7 @@ class EmployeeController extends Controller
                 $employee->shiftAssignments()->whereDate('shift_date', '>=', today())->delete();
             }
         });
+        app(AdminDashboardData::class)->forgetAll();
 
         return redirect()->route('admin.employees.index')
             ->with('success', 'Data pegawai berhasil diperbarui.');
@@ -117,6 +120,7 @@ class EmployeeController extends Controller
                 $employee->user->update(['status' => 'inactive']);
                 $employee->shiftAssignments()->whereDate('shift_date', '>=', today())->delete();
             });
+            app(AdminDashboardData::class)->forgetAll();
 
             return redirect()->route('admin.employees.index')
                 ->with('success', 'Pegawai tidak dihapus karena memiliki riwayat absensi/izin. Akun berhasil dinonaktifkan dan penugasan shift mendatang dibatalkan.');
@@ -125,6 +129,7 @@ class EmployeeController extends Controller
         DB::transaction(function () use ($employee) {
             $employee->user->delete();
         });
+        app(AdminDashboardData::class)->forgetAll();
 
         return redirect()->route('admin.employees.index')
             ->with('success', 'Data pegawai berhasil dihapus.');
@@ -137,7 +142,7 @@ class EmployeeController extends Controller
 
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['nullable', 'email', 'max:150', Rule::unique('users')->ignore($userId)],
+            'email' => ['nullable', 'string', 'not_regex:/[\r\n]/', 'email', 'max:150', Rule::unique('users')->ignore($userId)],
             'username' => ['required', 'string', 'max:50', Rule::unique('users')->ignore($userId)],
             'password' => [$employee ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'status' => ['required', Rule::in(['active', 'inactive'])],

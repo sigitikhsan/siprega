@@ -29,7 +29,8 @@ class AttendanceFlowTest extends TestCase
         [$user, $employee] = $this->fixedEmployee();
         $this->location();
 
-        $this->actingAs($user)->post(route('employee.attendance.check-in'), $this->gps(-6.25, 106.85))
+        $this->actingAs($user);
+        $this->post(route('employee.attendance.check-in'), $this->gps(-6.25, 106.85))
             ->assertSessionHasErrors('location');
 
         $this->assertDatabaseMissing('attendances', ['employee_id' => $employee->id]);
@@ -41,7 +42,8 @@ class AttendanceFlowTest extends TestCase
         [$user, $employee] = $this->fixedEmployee();
         $this->location();
 
-        $this->actingAs($user)->post(route('employee.attendance.check-in'), $this->gps(-6.2, 106.8, 75))
+        $this->actingAs($user);
+        $this->post(route('employee.attendance.check-in'), $this->gps(-6.2, 106.8, 75))
             ->assertSessionHasErrors('accuracy');
 
         $this->assertDatabaseMissing('attendances', ['employee_id' => $employee->id]);
@@ -53,8 +55,9 @@ class AttendanceFlowTest extends TestCase
         [$user, $employee] = $this->fixedEmployee();
         $this->location();
 
-        $this->actingAs($user)->post(route('employee.attendance.check-in'), $this->gps())->assertSessionHas('success');
-        $this->actingAs($user)->post(route('employee.attendance.check-in'), $this->gps())->assertSessionHasErrors('attendance');
+        $this->actingAs($user);
+        $this->post(route('employee.attendance.check-in'), $this->gps())->assertSessionHas('success');
+        $this->post(route('employee.attendance.check-in'), $this->gps())->assertSessionHasErrors('attendance');
 
         $this->assertSame(1, Attendance::where('employee_id', $employee->id)->count());
     }
@@ -65,7 +68,8 @@ class AttendanceFlowTest extends TestCase
         [$user] = $this->fixedEmployee();
         $this->location();
 
-        $this->actingAs($user)->patch(route('employee.attendance.check-out'), $this->gps())
+        $this->actingAs($user);
+        $this->patch(route('employee.attendance.check-out'), $this->gps(-6.2, 106.8, 10, 'check_out'))
             ->assertSessionHas('error');
     }
 
@@ -81,7 +85,8 @@ class AttendanceFlowTest extends TestCase
             'shift_date' => '2026-09-03',
         ]);
 
-        $this->actingAs($user)->post(route('employee.attendance.check-in'), $this->gps())->assertSessionHas('success');
+        $this->actingAs($user);
+        $this->post(route('employee.attendance.check-in'), $this->gps())->assertSessionHas('success');
 
         $attendance = Attendance::where('employee_id', $employee->id)->firstOrFail();
         $this->assertSame('2026-09-03', $attendance->attendance_date->toDateString());
@@ -90,20 +95,24 @@ class AttendanceFlowTest extends TestCase
         $this->assertSame($location->id, $attendance->location_id);
 
         Carbon::setTestNow('2026-09-04 07:05:00');
-        $this->actingAs($user)->patch(route('employee.attendance.check-out'), $this->gps())->assertSessionHas('success');
+        $this->patch(route('employee.attendance.check-out'), $this->gps(-6.2, 106.8, 10, 'check_out'))->assertSessionHas('success');
 
         $attendance->refresh();
         $this->assertSame('2026-09-04 07:05:00', $attendance->check_out->format('Y-m-d H:i:s'));
         $this->assertSame('normal', $attendance->check_out_status);
     }
 
-    private function gps(float $latitude = -6.2, float $longitude = 106.8, float $accuracy = 10): array
+    private function gps(float $latitude = -6.2, float $longitude = 106.8, float $accuracy = 10, string $action = 'check_in'): array
     {
+        $nonce = $this->getJson(route('employee.attendance.challenge', ['action' => $action]))
+            ->assertOk()->json('token');
+
         return [
             'latitude' => $latitude,
             'longitude' => $longitude,
             'accuracy' => $accuracy,
             'captured_at' => now()->toIso8601String(),
+            'attendance_nonce' => $nonce,
         ];
     }
 

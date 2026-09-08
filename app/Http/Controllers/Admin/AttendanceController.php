@@ -8,7 +8,9 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Location;
 use App\Models\WorkSchedule;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AttendanceController extends Controller
@@ -46,17 +48,17 @@ class AttendanceController extends Controller
 
     public function export(Request $request)
     {
-        $filters = $this->validateFilters($request, $request->routeIs('admin.attendance-recap.*'));
+        $filters = $this->validateFilters($request, $request->routeIs('admin.attendance-recap.*'), true);
         $fileName = 'rekap-absensi-'.now()->format('Ymd-His').'.xlsx';
 
         return Excel::download(new AttendanceRecapExport($this->filteredQuery($filters)), $fileName);
     }
 
-    private function validateFilters(Request $request, bool $datesOnly = false): array
+    private function validateFilters(Request $request, bool $datesOnly = false, bool $forExport = false): array
     {
         $rules = [
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'date_from' => [$forExport ? 'required' : 'nullable', 'date'],
+            'date_to' => [$forExport ? 'required' : 'nullable', 'date', 'after_or_equal:date_from'],
         ];
 
         if (!$datesOnly) {
@@ -71,7 +73,15 @@ class AttendanceController extends Controller
             ];
         }
 
-        return $request->validate($rules);
+        $validated = $request->validate($rules);
+
+        if ($forExport && Carbon::parse($validated['date_from'])->diffInDays(Carbon::parse($validated['date_to'])) > 30) {
+            throw ValidationException::withMessages([
+                'date_to' => 'Rentang ekspor maksimal 31 hari.',
+            ]);
+        }
+
+        return $validated;
     }
 
     private function filteredQuery(array $filters)

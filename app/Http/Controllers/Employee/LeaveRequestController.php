@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
+use App\Rules\AllowedLeaveAttachment;
+use App\Services\AdminDashboardData;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -31,12 +33,13 @@ class LeaveRequestController extends Controller
 
     public function store(Request $request)
     {
+        $attachmentRule = new AllowedLeaveAttachment();
         $validated = $request->validate([
             'type' => ['required', Rule::in(['permission', 'sick'])],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'duration' => ['required', 'integer', 'min:1', 'max:30'],
             'reason' => ['required', 'string', 'min:10', 'max:2000'],
-            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'attachment' => ['nullable', 'file', 'max:5120', $attachmentRule],
         ], ['start_date.after_or_equal' => 'Tanggal mulai tidak boleh sebelum hari ini.', 'attachment.max' => 'Ukuran lampiran maksimal 5 MB.']);
         $employee = $request->user()->employee()->firstOrFail();
         $start = Carbon::parse($validated['start_date']);
@@ -51,12 +54,13 @@ class LeaveRequestController extends Controller
         $path = null;
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $path = $file->storeAs('leave-attachments/'.$employee->id, Str::uuid().'.'.$file->getClientOriginalExtension(), 'local');
+            $path = $file->storeAs('leave-attachments/'.$employee->id, Str::uuid().'.'.$attachmentRule->extension(), 'local');
         }
         $employee->leaveRequests()->create([
             'type' => $validated['type'], 'start_date' => $validated['start_date'], 'duration' => $validated['duration'],
             'reason' => $validated['reason'], 'attachment' => $path, 'status' => 'pending',
         ]);
+        app(AdminDashboardData::class)->forgetLeaveRequests();
         return redirect()->route('employee.leave-requests.index')->with('success', 'Pengajuan berhasil dikirim dan menunggu keputusan admin.');
     }
 
@@ -73,6 +77,7 @@ class LeaveRequestController extends Controller
         if ($leaveRequest->status !== 'pending') return back()->with('error', 'Hanya pengajuan yang masih menunggu yang dapat dibatalkan.');
         if ($leaveRequest->attachment) Storage::disk('local')->delete($leaveRequest->attachment);
         $leaveRequest->delete();
+        app(AdminDashboardData::class)->forgetLeaveRequests();
         return redirect()->route('employee.leave-requests.index')->with('success', 'Pengajuan berhasil dibatalkan.');
     }
 

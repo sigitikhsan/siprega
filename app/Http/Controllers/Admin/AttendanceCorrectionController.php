@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\AttendanceCorrection;
+use App\Services\AdminDashboardData;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -100,7 +101,7 @@ class AttendanceCorrectionController extends Controller
             return $correction;
         });
 
-
+        app(AdminDashboardData::class)->forgetAttendance();
         return redirect()->route('admin.attendances.show', $attendance)
             ->with('success', 'Data absensi berhasil dikoreksi.');
     }

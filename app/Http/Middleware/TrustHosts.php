@@ -13,8 +13,8 @@ class TrustHosts extends Middleware
      */
     public function hosts()
     {
-        return [
-            $this->allSubdomainsOfApplicationUrl(),
-        ];
+        $configuredHosts = config('security.trusted_hosts', []);
+
+        return $configuredHosts ?: [$this->allSubdomainsOfApplicationUrl()];
     }
 }

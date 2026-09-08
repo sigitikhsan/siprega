@@ -65,7 +65,7 @@
                 <p class="text-muted small">{{ optional($todayAttendance)->check_in ? $todayAttendance->check_in->format('H:i:s') : 'Catat waktu dan lokasi kedatangan' }}</p>
                 <form method="POST" action="{{ route('employee.attendance.check-in') }}" class="attendance-form mt-auto">
                     @csrf
-                    <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy"><input type="hidden" name="captured_at">
+                    <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy"><input type="hidden" name="captured_at"><input type="hidden" name="attendance_nonce">
                     <button class="btn btn-primary w-100 locate-button" type="button" data-action-label="Absen Masuk" {{ !$activeSchedule || optional($todayAttendance)->check_in || ($todayLeave && $todayLeave->status === 'approved') ? 'disabled' : '' }}>Absen Masuk</button>
                 </form>
             </div></div>
@@ -78,7 +78,7 @@
                 <p class="text-muted small">{{ optional($todayAttendance)->check_out ? $todayAttendance->check_out->format('H:i:s') : 'Catat waktu dan lokasi kepulangan' }}</p>
                 <form method="POST" action="{{ route('employee.attendance.check-out') }}" class="attendance-form mt-auto">
                     @csrf @method('PATCH')
-                    <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy"><input type="hidden" name="captured_at">
+                    <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy"><input type="hidden" name="captured_at"><input type="hidden" name="attendance_nonce">
                     <input class="form-control form-control-sm mb-2" name="early_checkout_reason" placeholder="Alasan jika pulang lebih awal">
                     <button class="btn btn-primary w-100 locate-button" type="button" data-action-label="Absen Pulang" {{ !optional($todayAttendance)->check_in || optional($todayAttendance)->check_out ? 'disabled' : '' }}>Absen Pulang</button>
                 </form>
@@ -123,7 +123,8 @@
             updateClock(); setInterval(updateClock, 1000);
             const gpsStatus = document.getElementById('gpsStatus');
             const gpsBadge = document.getElementById('gpsBadge');
-            document.querySelectorAll('.locate-button').forEach(button => button.addEventListener('click', () => {
+            const challengeUrl = @json(route('employee.attendance.challenge'));
+            document.querySelectorAll('.locate-button').forEach(button => button.addEventListener('click', async () => {
                 if (!navigator.geolocation) {
                     gpsStatus.textContent = 'Perangkat atau browser ini tidak mendukung GPS.';
                     gpsBadge.className = 'badge bg-danger align-self-start align-self-md-center';
@@ -135,6 +136,21 @@
                 gpsStatus.textContent = 'Sedang meminta koordinat dengan akurasi tinggi...';
                 gpsBadge.className = 'badge bg-warning text-dark align-self-start align-self-md-center';
                 gpsBadge.textContent = 'Memproses';
+                try {
+                    const action = form.action.includes('check-out') ? 'check_out' : 'check_in';
+                    const response = await fetch(challengeUrl + '?action=' + encodeURIComponent(action), {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin', cache: 'no-store'
+                    });
+                    if (!response.ok) throw new Error('challenge_failed');
+                    form.attendance_nonce.value = (await response.json()).token;
+                } catch (error) {
+                    button.disabled = false; button.textContent = label;
+                    gpsStatus.textContent = 'Verifikasi keamanan gagal. Periksa koneksi lalu coba kembali.';
+                    gpsBadge.className = 'badge bg-danger align-self-start align-self-md-center';
+                    gpsBadge.textContent = 'Gagal';
+                    return;
+                }
                 navigator.geolocation.getCurrentPosition(position => {
                     form.latitude.value = position.coords.latitude;
                     form.longitude.value = position.coords.longitude;

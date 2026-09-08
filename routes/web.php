@@ -32,6 +32,9 @@ Route::get('/leave-requests/{leaveRequest}/attachment', [EmployeeLeaveRequestCon
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/live', [DashboardController::class, 'live'])
+        ->middleware('throttle:12,1')
+        ->name('dashboard.live');
 
     Route::resource('employees', EmployeeController::class)->except('show');
     Route::resource('work-schedules', WorkScheduleController::class)->except('show');
@@ -39,9 +42,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/shift-assignments', [ShiftAssignmentController::class, 'store'])->name('shift-assignments.store');
     Route::resource('locations', LocationController::class)->except('show');
     Route::get('/attendances', [AttendanceController::class, 'index'])->name('attendances.index');
-    Route::get('/attendances/export', [AttendanceController::class, 'export'])->name('attendances.export');
+    Route::get('/attendances/export', [AttendanceController::class, 'export'])->middleware('throttle:3,1')->name('attendances.export');
     Route::get('/attendance-recap', [AttendanceController::class, 'index'])->name('attendance-recap.index');
-    Route::get('/attendance-recap/export', [AttendanceController::class, 'export'])->name('attendance-recap.export');
+    Route::get('/attendance-recap/export', [AttendanceController::class, 'export'])->middleware('throttle:3,1')->name('attendance-recap.export');
     Route::get('/attendances/{attendance}/correction', [AttendanceCorrectionController::class, 'edit'])->name('attendances.correction.edit');
     Route::patch('/attendances/{attendance}/correction', [AttendanceCorrectionController::class, 'update'])->name('attendances.correction.update');
     Route::get('/attendances/{attendance}', [AttendanceController::class, 'show'])->name('attendances.show');
@@ -58,6 +61,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
 Route::middleware(['auth', 'employee'])->group(function () {
     Route::get('/dashboard', [EmployeeDashboardController::class, 'index'])->name('employee.dashboard');
+    Route::get('/attendance/challenge', [EmployeeAttendanceController::class, 'challenge'])->middleware('throttle:12,1')->name('employee.attendance.challenge');
     Route::post('/attendance/check-in', [EmployeeAttendanceController::class, 'checkIn'])->middleware('throttle:6,1')->name('employee.attendance.check-in');
     Route::patch('/attendance/check-out', [EmployeeAttendanceController::class, 'checkOut'])->middleware('throttle:6,1')->name('employee.attendance.check-out');
     Route::get('/attendance-history', [AttendanceHistoryController::class, 'index'])->name('employee.attendances.index');

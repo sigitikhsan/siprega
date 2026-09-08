@@ -40,12 +40,10 @@
         <span>Selamat datang, <strong>{{ auth()->user()->name }}</strong>. Berikut ringkasan aktivitas sistem hari ini.</span>
     </div>
 
-    @if ($statistics['pending_leave_requests'] > 0)
-        <a class="alert alert-warning d-flex justify-content-between align-items-center text-decoration-none mb-4" href="{{ route('admin.leave-requests.index', ['status' => 'pending']) }}">
-            <span><strong>{{ $statistics['pending_leave_requests'] }}</strong> pengajuan izin/sakit menunggu persetujuan.</span>
+    <a id="pendingLeaveAlert" class="alert alert-warning justify-content-between align-items-center text-decoration-none mb-4 {{ $statistics['pending_leave_requests'] > 0 ? 'd-flex' : 'd-none' }}" href="{{ route('admin.leave-requests.index', ['status' => 'pending']) }}">
+            <span><strong data-live-stat="pending_leave_requests">{{ $statistics['pending_leave_requests'] }}</strong> pengajuan izin/sakit menunggu persetujuan.</span>
             <span class="fw-semibold">Tinjau →</span>
-        </a>
-    @endif
+    </a>
 
     <div class="row g-3 mb-4">
         @foreach ([
@@ -56,7 +54,7 @@
             ] as [$label, $value, $icon, $url, $theme])
             <div class="col-sm-6 col-xl-3">
                 <a class="metric-card {{ $theme }} d-flex align-items-stretch h-100 text-decoration-none" href="{{ $url }}">
-                    <span class="metric-copy d-flex flex-column justify-content-center p-3"><span class="metric-label small text-uppercase fw-semibold mb-2">{{ $label }}</span><span class="metric-value d-block fw-semibold">{{ $value }}</span></span>
+                    <span class="metric-copy d-flex flex-column justify-content-center p-3"><span class="metric-label small text-uppercase fw-semibold mb-2">{{ $label }}</span><span class="metric-value d-block fw-semibold" data-live-stat="{{ ['Pegawai Aktif' => 'active_employees', 'Hadir Hari Ini' => 'attendance_today', 'Terlambat' => 'late_today', 'Menunggu Persetujuan' => 'pending_leave_requests'][$label] }}">{{ $value }}</span></span>
                     <span class="metric-icon"><x-icon :name="$icon" size="29" /></span>
                 </a>
             </div>
@@ -96,6 +94,7 @@
                     <h2 class="h5 fw-semibold mb-0">Pengajuan Menunggu</h2>
                     <a class="small dashboard-action-link" href="{{ route('admin.leave-requests.index') }}">Lihat semua</a>
                 </div>
+                <div id="recentLeaveRequests" aria-live="polite">
                 @forelse ($recentLeaveRequests as $leaveRequest)
                     <a class="activity-row d-flex justify-content-between align-items-center gap-3 py-3 text-dark text-decoration-none" href="{{ route('admin.leave-requests.show', $leaveRequest) }}">
                         <span><span class="d-block fw-semibold">{{ $leaveRequest->employee->user->name }}</span><small class="text-muted">{{ $leaveRequest->type === 'sick' ? 'Sakit' : 'Izin' }} · {{ $leaveRequest->duration }} hari</small></span>
@@ -104,6 +103,7 @@
                 @empty
                     <p class="text-muted py-4 mb-0">Tidak ada pengajuan yang menunggu.</p>
                 @endforelse
+                </div>
             </section>
         </div>
         <div class="col-lg-4">
@@ -112,6 +112,7 @@
                     <h2 class="h5 fw-semibold mb-0">Absensi Terbaru</h2>
                     <a class="small dashboard-action-link" href="{{ route('admin.attendances.index') }}">Lihat semua</a>
                 </div>
+                <div id="recentAttendances" aria-live="polite">
                 @forelse ($recentAttendances as $attendance)
                     <a class="activity-row d-flex justify-content-between align-items-center gap-3 py-3 text-dark text-decoration-none" href="{{ route('admin.attendances.show', $attendance) }}">
                         <span><span class="d-block fw-semibold">{{ $attendance->employee->user->name }}</span><small class="text-muted">{{ $attendance->location->name }}</small></span>
@@ -120,6 +121,7 @@
                 @empty
                     <p class="text-muted py-4 mb-0">Belum ada aktivitas absensi.</p>
                 @endforelse
+                </div>
             </section>
         </div>
     </div>
@@ -130,10 +132,10 @@
 
             const canvas = document.getElementById('attendanceChart');
             const buttons = Array.from(document.querySelectorAll('[data-chart-type]'));
-            const labels = @json($attendanceChart->pluck('label')->values());
-            const present = @json($attendanceChart->pluck('present')->values());
-            const late = @json($attendanceChart->pluck('late')->values());
-            const totals = @json($chartTotals);
+            let labels = @json($attendanceChart->pluck('label')->values());
+            let present = @json($attendanceChart->pluck('present')->values());
+            let late = @json($attendanceChart->pluck('late')->values());
+            let totals = @json($chartTotals);
             const colors = { present: '#06b6d4', late: '#f59e0b' };
             let chart;
 
@@ -187,6 +189,109 @@
             let initialType = 'bar';
             try { initialType = localStorage.getItem('adminAttendanceChartType') || 'bar'; } catch (error) {}
             renderChart(initialType);
+
+            const liveUrl = @json(route('admin.dashboard.live'));
+            const attendanceContainer = document.getElementById('recentAttendances');
+            const leaveContainer = document.getElementById('recentLeaveRequests');
+            const pendingAlert = document.getElementById('pendingLeaveAlert');
+            let pollCount = 0;
+            let polling = false;
+
+            const textElement = function (tag, className, value) {
+                const element = document.createElement(tag);
+                element.className = className;
+                element.textContent = value;
+                return element;
+            };
+
+            const renderAttendances = function (items) {
+                attendanceContainer.replaceChildren();
+                if (!items.length) {
+                    attendanceContainer.appendChild(textElement('p', 'text-muted py-4 mb-0', 'Belum ada aktivitas absensi.'));
+                    return;
+                }
+
+                items.forEach(function (item) {
+                    const link = document.createElement('a');
+                    link.className = 'activity-row d-flex justify-content-between align-items-center gap-3 py-3 text-dark text-decoration-none';
+                    link.href = item.url;
+                    const identity = document.createElement('span');
+                    identity.append(textElement('span', 'd-block fw-semibold', item.name), textElement('small', 'text-muted', item.location));
+                    const moment = document.createElement('span');
+                    moment.className = 'text-end';
+                    moment.append(textElement('span', 'attendance-time d-block', item.time), textElement('small', 'text-muted', item.date));
+                    link.append(identity, moment);
+                    attendanceContainer.appendChild(link);
+                });
+            };
+
+            const renderLeaveRequests = function (items) {
+                leaveContainer.replaceChildren();
+                if (!items.length) {
+                    leaveContainer.appendChild(textElement('p', 'text-muted py-4 mb-0', 'Tidak ada pengajuan yang menunggu.'));
+                    return;
+                }
+
+                items.forEach(function (item) {
+                    const link = document.createElement('a');
+                    link.className = 'activity-row d-flex justify-content-between align-items-center gap-3 py-3 text-dark text-decoration-none';
+                    link.href = item.url;
+                    const identity = document.createElement('span');
+                    identity.append(textElement('span', 'd-block fw-semibold', item.name), textElement('small', 'text-muted', item.summary));
+                    link.append(identity, textElement('small', 'text-muted', item.date));
+                    leaveContainer.appendChild(link);
+                });
+            };
+
+            const refreshDashboard = async function () {
+                if (polling || document.hidden) return;
+                polling = true;
+                pollCount += 1;
+                const includeChart = pollCount % 4 === 0;
+
+                try {
+                    const response = await fetch(liveUrl + (includeChart ? '?chart=1' : ''), {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                        cache: 'no-store'
+                    });
+                    if (!response.ok) return;
+                    const data = await response.json();
+
+                    Object.keys(data.statistics).forEach(function (key) {
+                        document.querySelectorAll('[data-live-stat="' + key + '"]').forEach(function (element) {
+                            element.textContent = data.statistics[key];
+                        });
+                    });
+                    const hasPending = Number(data.statistics.pending_leave_requests) > 0;
+                    pendingAlert.classList.toggle('d-none', !hasPending);
+                    pendingAlert.classList.toggle('d-flex', hasPending);
+                    renderAttendances(data.recent_attendances);
+                    renderLeaveRequests(data.recent_leave_requests);
+
+                    if (data.chart) {
+                        labels = data.chart.labels;
+                        present = data.chart.present;
+                        late = data.chart.late;
+                        totals = {
+                            present: present.reduce(function (sum, value) { return sum + value; }, 0),
+                            late: late.reduce(function (sum, value) { return sum + value; }, 0)
+                        };
+                        const activeButton = document.querySelector('[data-chart-type].active');
+                        renderChart(activeButton ? activeButton.dataset.chartType : 'bar');
+                    }
+                } catch (error) {
+                    // Pertahankan data terakhir jika jaringan sementara terputus.
+                } finally {
+                    polling = false;
+                }
+            };
+
+            const pollingTimer = window.setInterval(refreshDashboard, 15000);
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) refreshDashboard();
+            });
+            window.addEventListener('pagehide', function () { window.clearInterval(pollingTimer); }, { once: true });
         });
     </script>
 @endsection

@@ -33,7 +33,7 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'username' => ['required', 'string', 'max:50', Rule::unique('users')->ignore($user->id)],
-            'email' => ['nullable', 'email', 'max:150', Rule::unique('users')->ignore($user->id)],
+            'email' => ['nullable', 'string', 'not_regex:/[\r\n]/', 'email', 'max:150', Rule::unique('users')->ignore($user->id)],
         ]);
 
         $user->update($validated);

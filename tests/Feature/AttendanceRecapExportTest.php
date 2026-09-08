@@ -73,6 +73,21 @@ class AttendanceRecapExportTest extends TestCase
         ]))->assertSessionHasErrors('date_to');
     }
 
+    public function test_export_requires_start_and_end_dates()
+    {
+        $this->actingAs($this->admin())
+            ->get(route('admin.attendance-recap.export'))
+            ->assertSessionHasErrors(['date_from', 'date_to']);
+    }
+
+    public function test_export_rejects_a_range_longer_than_thirty_one_days()
+    {
+        $this->actingAs($this->admin())->get(route('admin.attendance-recap.export', [
+            'date_from' => '2026-01-01',
+            'date_to' => '2026-02-01',
+        ]))->assertSessionHasErrors('date_to');
+    }
+
     public function test_export_escapes_values_that_excel_could_interpret_as_formulas()
     {
         $location = $this->location();

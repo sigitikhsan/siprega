@@ -32,11 +32,14 @@ class AttendanceGpsSecurityTest extends TestCase
     {
         [$user, $employee] = $this->attendanceEmployee();
 
-        $this->actingAs($user)->post(route('employee.attendance.check-in'), [
+        $this->actingAs($user);
+        $nonce = $this->challenge('check_in');
+        $this->post(route('employee.attendance.check-in'), [
             'latitude' => -6.2,
             'longitude' => 106.8,
             'accuracy' => 10,
             'captured_at' => now()->toIso8601String(),
+            'attendance_nonce' => $nonce,
         ])->assertSessionHas('success');
 
         $this->assertDatabaseHas('attendances', [
@@ -44,6 +47,29 @@ class AttendanceGpsSecurityTest extends TestCase
             'check_in_accuracy' => 10,
             'check_in_location_suspicious' => 0,
         ]);
+    }
+
+    public function test_gps_challenge_cannot_be_replayed()
+    {
+        [$user] = $this->attendanceEmployee();
+        $this->actingAs($user);
+        $nonce = $this->challenge('check_in');
+        $payload = [
+            'latitude' => -6.2,
+            'longitude' => 106.8,
+            'accuracy' => 10,
+            'captured_at' => now()->toIso8601String(),
+            'attendance_nonce' => $nonce,
+        ];
+
+        $this->post(route('employee.attendance.check-in'), $payload)->assertSessionHas('success');
+        $this->post(route('employee.attendance.check-in'), $payload)->assertSessionHasErrors('attendance_nonce');
+    }
+
+    private function challenge(string $action): string
+    {
+        return $this->getJson(route('employee.attendance.challenge', ['action' => $action]))
+            ->assertOk()->json('token');
     }
 
     private function attendanceEmployee(): array

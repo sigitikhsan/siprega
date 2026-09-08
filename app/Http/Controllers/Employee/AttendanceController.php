@@ -6,16 +6,35 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Location;
 use App\Services\EmployeeScheduleResolver;
+use App\Services\AdminDashboardData;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceController extends Controller
 {
+    public function challenge(Request $request)
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'in:check_in,check_out'],
+        ]);
+        $token = Str::random(64);
+        Cache::put($this->challengeKey($token), [
+            'user_id' => $request->user()->id,
+            'action' => $validated['action'],
+            'expires_at' => now()->addMinutes(5)->timestamp,
+        ], now()->addMinutes(5));
+
+        return response()->json(['token' => $token, 'expires_in' => 300]);
+    }
+
     public function checkIn(Request $request, EmployeeScheduleResolver $resolver)
     {
         $position = $this->validatePosition($request);
+        $this->consumeChallenge($request, 'check_in');
         $employee = $request->user()->employee()->with('workSchedule')->firstOrFail();
         list($schedule, $assignment, $shiftDate) = $resolver->forCurrentMoment($employee, now());
         if ($assignment && $assignment->is_day_off) {
@@ -72,12 +91,14 @@ class AttendanceController extends Controller
             return back()->with('error', 'Anda sudah melakukan absen masuk hari ini.');
         }
 
+        app(AdminDashboardData::class)->forgetAttendance();
         return back()->with('success', 'Absen masuk berhasil dicatat pukul '.$now->format('H:i:s').'.');
     }
 
     public function checkOut(Request $request)
     {
         $position = $this->validatePosition($request);
+        $this->consumeChallenge($request, 'check_out');
         $validated = $request->validate(['early_checkout_reason' => ['nullable', 'string', 'max:1000']]);
         $employee = $request->user()->employee()->firstOrFail();
         [$location, $distance] = $this->resolveLocation($position);
@@ -124,6 +145,7 @@ class AttendanceController extends Controller
             ]);
         });
 
+        app(AdminDashboardData::class)->forgetAttendance();
         return back()->with('success', 'Absen pulang berhasil dicatat pukul '.$now->format('H:i:s').'.');
     }
 
@@ -149,6 +171,28 @@ class AttendanceController extends Controller
         // agar konsisten dengan check_in/check_out yang menggunakan waktu server.
         $position['captured_at'] = $capturedAt->copy()->setTimezone(config('app.timezone'));
         return $position;
+    }
+
+    private function consumeChallenge(Request $request, string $action): void
+    {
+        $validated = $request->validate([
+            'attendance_nonce' => ['required', 'string', 'size:64'],
+        ]);
+        $payload = Cache::pull($this->challengeKey($validated['attendance_nonce']));
+
+        if (!$payload
+            || (int) ($payload['user_id'] ?? 0) !== (int) $request->user()->id
+            || ($payload['action'] ?? null) !== $action
+            || (int) ($payload['expires_at'] ?? 0) < now()->timestamp) {
+            throw ValidationException::withMessages([
+                'attendance_nonce' => 'Permintaan absensi tidak valid atau sudah digunakan. Muat ulang halaman lalu coba kembali.',
+            ]);
+        }
+    }
+
+    private function challengeKey(string $token): string
+    {
+        return 'attendance_challenge:'.hash('sha256', $token);
     }
 
     private function resolveLocation(array $position): array

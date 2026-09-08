@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\Attendance;
+use App\Services\AdminDashboardData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -109,6 +110,7 @@ class LeaveRequestController extends Controller
         });
 
         $leaveRequest->refresh();
+        app(AdminDashboardData::class)->forgetLeaveRequests();
 
         $message = $validated['decision'] === 'approved'
             ? 'Pengajuan berhasil disetujui.'

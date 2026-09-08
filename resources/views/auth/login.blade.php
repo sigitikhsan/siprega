@@ -109,7 +109,7 @@
                 </form>
                 @php
                     $adminWhatsApp = preg_replace('/\D+/', '', config('services.whatsapp.admin_number', ''));
-                    $whatsAppMessage = "Halo Admin, saya ingin mengajukan bantuan akses akun SiHadir.\n\nNama: \nNIK: \nKendala: ";
+                    $whatsAppMessage = "Halo Admin, saya ingin mengajukan bantuan akses akun SiHadir.\n\nNama: \nPosisi: \nKendala: ";
                     $whatsAppUrl = $adminWhatsApp
                         ? 'https://wa.me/'.$adminWhatsApp.'?text='.rawurlencode($whatsAppMessage)
                         : '#';
