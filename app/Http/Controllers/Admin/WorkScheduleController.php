@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * CRUD master jadwal tetap, shift siang, dan shift malam.
+ * WorkSchedule dipakai oleh Employee, EmployeeShiftAssignment, dan Attendance sehingga penghapusan memiliki pemeriksaan dependensi.
+ * Catatan: jadwal berhistori dipertahankan/nonaktif, bukan dihapus paksa, agar laporan lama tetap dapat dibaca.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -29,7 +35,7 @@ class WorkScheduleController extends Controller
             ->paginate(10)
             ->appends(['search' => $search]);
 
-        return view('admin.work-schedules.index', compact('schedules', 'search'));
+        return view('admin.work-schedules.schedule-list', compact('schedules', 'search'));
     }
 
     public function create()

@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Menyediakan statistik, absensi terbaru, pengajuan terbaru, dan data grafik untuk dashboard admin.
+ * Mengagregasi Employee, Attendance, dan LeaveRequest dengan cache singkat serta metode invalidasi terpusat.
+ * Catatan: mutation terkait absensi/izin/pegawai wajib memanggil metode forget yang sesuai agar data tidak kedaluwarsa.
+ */
+
 namespace App\Services;
 
 use App\Models\Attendance;
@@ -18,13 +24,16 @@ class AdminDashboardData
     {
         return Cache::remember(self::STATISTICS_KEY, 15, function () {
             $today = now()->toDateString();
+            $attendanceCounts = Attendance::where('attendance_date', $today)
+                ->selectRaw("COUNT(check_in) as attended, SUM(CASE WHEN check_in_status = 'late' THEN 1 ELSE 0 END) as late")
+                ->first();
 
             return [
                 'active_employees' => Employee::whereHas('user', function ($query) {
                     $query->where('status', 'active');
                 })->count(),
-                'attendance_today' => Attendance::where('attendance_date', $today)->whereNotNull('check_in')->count(),
-                'late_today' => Attendance::where('attendance_date', $today)->where('check_in_status', 'late')->count(),
+                'attendance_today' => (int) $attendanceCounts->attended,
+                'late_today' => (int) $attendanceCounts->late,
                 'pending_leave_requests' => LeaveRequest::where('status', 'pending')->count(),
             ];
         });

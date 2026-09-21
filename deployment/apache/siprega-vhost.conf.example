@@ -1,0 +1,63 @@
+# Template VirtualHost SiPrega untuk XAMPP/Apache di Windows Server.
+# Salin dan sesuaikan nilainya saat tahap instalasi; file ini tidak dimuat otomatis oleh Apache.
+# Modul yang diperlukan: rewrite_module, ssl_module, headers_module, expires_module, deflate_module.
+
+# HTTP hanya mengarahkan ke HTTPS. Geolocation browser pada alamat produksi memerlukan secure context.
+<VirtualHost *:80>
+    ServerName siprega.example.balmon.go.id
+    Redirect permanent / https://siprega.example.balmon.go.id/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName siprega.example.balmon.go.id
+    ServerAdmin admin@example.balmon.go.id
+
+    # Project tetap berada di drive D; XAMPP/Apache boleh berada di drive C.
+    DocumentRoot "D:/Laravel/absensi-pegawai/public"
+    DirectoryIndex index.php
+
+    <Directory "D:/Laravel/absensi-pegawai/public">
+        Options -Indexes
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # Menolak akses ke dotfile jika ada yang tidak sengaja ditempatkan di public.
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+
+    # Sedikit di atas batas lampiran aplikasi 5 MB untuk overhead multipart/form-data.
+    LimitRequestBody 6291456
+
+    SSLEngine on
+    # Jangan gunakan server.crt/server.key bawaan XAMPP untuk production.
+    # Tempatkan sertifikat resmi pada direktori bawaan berikut atau sesuaikan path-nya.
+    SSLCertificateFile "C:/xampp/apache/conf/ssl.crt/siprega-fullchain.crt"
+    SSLCertificateKeyFile "C:/xampp/apache/conf/ssl.key/siprega-private.key"
+    SSLProtocol -all +TLSv1.2
+    SSLCipherSuite HIGH:!aNULL:!MD5:!3DES
+
+    # Cache panjang aman karena URL aset Laravel Mix berubah melalui query hash manifest.
+    <IfModule mod_expires.c>
+        ExpiresActive On
+        ExpiresByType text/css "access plus 1 year"
+        ExpiresByType application/javascript "access plus 1 year"
+        ExpiresByType image/png "access plus 1 year"
+        ExpiresByType image/jpeg "access plus 1 year"
+        ExpiresByType image/x-icon "access plus 1 year"
+    </IfModule>
+
+    <IfModule mod_headers.c>
+        <FilesMatch "\.(?:css|js|png|jpe?g|ico|svg|woff2?)$">
+            Header set Cache-Control "public, max-age=31536000, immutable"
+        </FilesMatch>
+    </IfModule>
+
+    <IfModule mod_deflate.c>
+        AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
+    </IfModule>
+
+    ErrorLog "logs/siprega-error.log"
+    CustomLog "logs/siprega-access.log" combined
+</VirtualHost>

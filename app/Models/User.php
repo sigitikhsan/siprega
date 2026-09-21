@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Entitas autentikasi sistem untuk admin dan pegawai.
+ * User memiliki satu Employee untuk role employee; role/status menentukan dashboard dan akses melalui middleware.
+ * Catatan: password wajib disimpan dalam bentuk hash dan remember_token harus dirotasi setelah perubahan keamanan.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +28,7 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'avatar_path',
     ];
 
     /**

@@ -158,6 +158,77 @@ class AdminCrudAuditTest extends TestCase
         $this->assertNull($attendance->early_checkout_reason);
     }
 
+    public function test_admin_can_correct_security_checkout_across_dates()
+    {
+        $admin = $this->user('admin');
+        $schedule = $this->schedule('Security Siang', 'day');
+        [, $employee] = $this->employee($schedule);
+        $employee->update(['uses_shift_schedule' => true]);
+        $attendance = Attendance::create([
+            'employee_id' => $employee->id,
+            'location_id' => $this->location()->id,
+            'work_schedule_id' => $schedule->id,
+            'attendance_date' => '2026-09-01',
+            'check_in' => '2026-09-01 07:00:00',
+            'check_in_status' => 'present',
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.attendances.correction.update', $attendance), [
+            'check_in' => '2026-09-01T07:00',
+            'check_out' => '2026-09-02T01:00',
+            'reason' => 'Petugas keamanan menyelesaikan tugas lintas tanggal.',
+        ])->assertSessionHas('success');
+
+        $this->assertSame('2026-09-02 01:00:00', $attendance->fresh()->check_out->format('Y-m-d H:i:s'));
+    }
+
+    public function test_fixed_schedule_correction_cannot_checkout_on_another_date()
+    {
+        $admin = $this->user('admin');
+        $schedule = $this->schedule('Jadwal Tetap', 'fixed');
+        [, $employee] = $this->employee($schedule);
+        $attendance = Attendance::create([
+            'employee_id' => $employee->id,
+            'location_id' => $this->location()->id,
+            'work_schedule_id' => $schedule->id,
+            'attendance_date' => '2026-09-01',
+            'check_in' => '2026-09-01 07:00:00',
+            'check_in_status' => 'present',
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.attendances.correction.update', $attendance), [
+            'check_in' => '2026-09-01T07:00',
+            'check_out' => '2026-09-02T01:00',
+            'reason' => 'Pengujian batas tanggal jadwal tetap.',
+        ])->assertSessionHasErrors('check_out');
+
+        $this->assertNull($attendance->fresh()->check_out);
+    }
+
+    public function test_attendance_detail_shows_dates_below_check_times()
+    {
+        $admin = $this->user('admin');
+        $schedule = $this->schedule('Security Malam', 'night');
+        [, $employee] = $this->employee($schedule);
+        $attendance = Attendance::create([
+            'employee_id' => $employee->id,
+            'location_id' => $this->location()->id,
+            'work_schedule_id' => $schedule->id,
+            'attendance_date' => '2026-09-01',
+            'check_in' => '2026-09-01 19:00:00',
+            'check_in_status' => 'present',
+            'check_out' => '2026-09-02 07:00:00',
+            'check_out_status' => 'normal',
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.attendances.show', $attendance))
+            ->assertOk()
+            ->assertSee('19:00:00')
+            ->assertSee('01/09/2026')
+            ->assertSee('07:00:00')
+            ->assertSee('02/09/2026');
+    }
+
     private function user(string $role, string $status = 'active'): User
     {
         return User::create([

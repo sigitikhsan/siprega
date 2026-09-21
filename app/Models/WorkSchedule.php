@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Master rentang waktu kerja untuk jadwal tetap, shift siang, atau shift malam.
+ * Memiliki banyak Employee, EmployeeShiftAssignment, dan Attendance sebagai snapshot jadwal saat presensi.
+ * Catatan: check_out_start shift malam secara logis berada pada hari berikutnya dan ditangani resolver/controller.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;

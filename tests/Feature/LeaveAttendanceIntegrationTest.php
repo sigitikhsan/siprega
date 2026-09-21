@@ -22,6 +22,10 @@ class LeaveAttendanceIntegrationTest extends TestCase
         LeaveRequest::create(['employee_id' => $employee->id, 'type' => 'sick', 'start_date' => today(), 'duration' => 1, 'reason' => 'Sedang sakit dan memerlukan istirahat', 'status' => 'approved']);
 
         $this->actingAs($user);
+        $this->get(route('employee.dashboard'))->assertOk()
+            ->assertViewHas('scheduleTicker', function ($ticker) {
+                return $ticker['state'] === 'sick' && $ticker['startsAt'] === null && $ticker['endsAt'] === null;
+            });
         $nonce = $this->getJson(route('employee.attendance.challenge', ['action' => 'check_in']))->assertOk()->json('token');
         $this->post(route('employee.attendance.check-in'), ['latitude' => -6.2, 'longitude' => 106.8, 'accuracy' => 10, 'captured_at' => now()->toIso8601String(), 'attendance_nonce' => $nonce])
             ->assertSessionHas('error');

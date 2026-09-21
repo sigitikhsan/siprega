@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Master titik kantor yang sah untuk absensi berbasis GPS.
+ * Location memiliki banyak Attendance dan menyediakan radius serta batas akurasi untuk validasi posisi.
+ * Catatan: koordinat browser adalah bukti pendukung; keputusan jarak tetap dihitung ulang di server.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;

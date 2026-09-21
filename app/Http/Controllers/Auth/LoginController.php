@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Mengelola login, remember me, logout, dan pembatasan percobaan autentikasi.
+ * Berelasi dengan model User melalui Laravel Auth dan mengarahkan role admin/employee ke dashboard masing-masing.
+ * Catatan: perubahan rate limit atau sesi harus tetap disertai pengujian LoginSecurityTest.
+ */
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;

@@ -1,37 +1,41 @@
+{{--
+    Halaman login publik untuk username, password, remember me, dan pesan rate limit.
+    Proses autentikasi serta pembatasan percobaan ditangani Auth\LoginController di sisi server.
+--}}
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Masuk - SiHadir</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Masuk - SiPrega</title>
+    <link href="{{ mix('css/bootstrap-app.min.css') }}" rel="stylesheet">
     <style>
-        :root { --navy: #08275a; --navy-dark: #061d46; --blue: #1764dc; --warm-bg: #fcfbfa; --warm-surface: #fffefa; --warm-border: #eae8e2; --muted: #716f69; }
-        body { min-height: 100vh; margin: 0; color: #242321; background: radial-gradient(circle at 15% 15%, #e8f1ff 0, transparent 34%), var(--warm-bg); line-height: 1.55; }
+        :root { --navy: #1764dc; --navy-dark: #1259c3; --blue: #1764dc; --warm-bg: #f8fafc; --warm-surface: #fff; --warm-border: #e2e8f0; --muted: #64748b; }
+        body { min-height: 100vh; margin: 0; color: #0f172a; background: radial-gradient(circle at 15% 15%, #dbeafe 0, transparent 34%), var(--warm-bg); line-height: 1.55; }
         .login-page { min-height: 100vh; display: grid; place-items: center; }
         .login-shell { width: min(100%, 1040px); min-height: 620px; margin: auto; overflow: hidden; background: var(--warm-surface); border: 1px solid var(--warm-border); border-radius: 1.25rem; box-shadow: 0 24px 65px rgba(8,39,90,.12); }
-        .brand-panel { position: relative; display: flex; min-height: 620px; flex-direction: column; justify-content: space-between; padding: 3rem; overflow: hidden; color: #fff; background: linear-gradient(145deg, #0b377b 0%, var(--navy-dark) 72%); }
-        .brand-panel::after { position: absolute; right: -140px; bottom: -180px; width: 420px; height: 420px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; content: ""; }
+        .brand-panel { position: relative; display: flex; min-height: 620px; flex-direction: column; justify-content: space-between; padding: 3rem; overflow: hidden; color: #0f172a; background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%); }
         .brand-mark { width: 62px; height: 54px; display: grid; flex: 0 0 62px; place-items: center; overflow: hidden; background: #fff; border: 1px solid rgba(255,255,255,.8); border-radius: .7rem; }
         .brand-mark img { width: 100%; height: 100%; object-fit: contain; }
         .brand-copy { max-width: 420px; }
         .brand-copy h1 { max-width: 360px; font-size: clamp(2rem, 4vw, 3.25rem); letter-spacing: -.045em; }
-        .brand-copy p { max-width: 360px; color: rgba(255,255,255,.68); }
-        .brand-footer { position: relative; z-index: 1; color: rgba(255,255,255,.5); font-size: .82rem; }
+        .brand-copy p { max-width: 360px; color: #475569; }
+        .brand-panel .text-white-50 { color: #64748b !important; }
+        .brand-footer { position: relative; z-index: 1; color: #64748b; font-size: .82rem; }
         .form-panel { position: relative; display: grid; min-height: 620px; place-items: center; padding: 5.5rem 3rem 3rem; background: var(--warm-surface); }
         .balmon-logo { position: absolute; top: 1.4rem; right: 1.7rem; width: 180px; height: 62px; object-fit: contain; object-position: right center; }
         .login-form { width: min(100%, 420px); }
         .login-form h2 { letter-spacing: -.035em; }
         .login-form .intro { color: var(--muted); }
         .form-label { margin-bottom: .45rem; font-size: .88rem; font-weight: 600; }
-        .form-control { min-height: 48px; color: #242321; background: var(--warm-surface); border-color: var(--warm-border); border-radius: .6rem; }
+        .form-control { min-height: 48px; color: #0f172a; background: var(--warm-surface); border-color: #cbd5e1; border-radius: .7rem; }
         .form-control:focus { background: #fff; border-color: #8db2e8; box-shadow: 0 0 0 .2rem rgba(23,100,220,.1); }
         .password-field { position: relative; }
         .password-field .form-control { padding-right: 4.5rem; }
         .password-toggle { position: absolute; top: 50%; right: .65rem; width: 34px; height: 34px; display:grid; place-items:center; padding:0; color: #5f6470; background: transparent; border: 0; border-radius:.45rem; transform: translateY(-50%); }
         .password-toggle:hover { color: var(--blue); }
-        .login-button { min-height: 48px; font-weight: 600; background: var(--navy); border-color: var(--navy); border-radius: .6rem; }
-        .login-button:hover, .login-button:focus { background: #0b3476; border-color: #0b3476; }
+        .login-button { min-height: 48px; font-weight: 600; background: var(--navy); border-color: var(--navy); border-radius: .7rem; }
+        .login-button:hover, .login-button:focus { background: var(--navy-dark); border-color: var(--navy-dark); }
         .login-alert { color: #8a2d2d; background: #fff6f5; border: 1px solid #efd6d2; border-radius: .6rem; font-size: .9rem; }
         .admin-contact { color: var(--blue); font-size: .9rem; font-weight: 600; text-underline-offset: .2rem; }
         .admin-contact:hover { color: var(--navy); }
@@ -64,11 +68,11 @@
         </section>
 
         <section class="col-md-7 col-xl-6 form-panel">
-            <img class="balmon-logo" src="{{ asset('img/balmon.png') }}" alt="Logo Balai Monitor Jakarta">
+            <img class="balmon-logo" src="{{ asset('img/balmon.png') }}" alt="Logo Balai Monitor Jakarta" width="360" height="115" decoding="async" fetchpriority="high">
             <div class="login-form">
                 <div class="mobile-brand align-items-center gap-3 mb-5">
                     <span class="brand-mark"><img src="{{ asset('img/komdigi.png') }}" alt="Logo Kementerian Komunikasi dan Digital"></span>
-                    <div><div class="fw-bold">SiHadir</div><div class="small text-muted">Sistem Absensi</div></div>
+                    <div><div class="fw-bold">SiPrega</div><div class="small text-muted">Sistem Presensi Pegawai</div></div>
                 </div>
 
                 <header class="mb-4">

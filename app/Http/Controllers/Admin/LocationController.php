@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * CRUD master lokasi dan batas validasi GPS untuk kegiatan absensi.
+ * Location memiliki banyak Attendance; radius dan accuracy_limit digunakan AttendanceController saat verifikasi posisi.
+ * Catatan: lokasi yang sudah menjadi bukti absensi tidak boleh dihapus dengan cara merusak histori.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -22,7 +28,7 @@ class LocationController extends Controller
             ->paginate(10)
             ->appends(['search' => $search]);
 
-        return view('admin.locations.index', compact('locations', 'search'));
+        return view('admin.locations.location-list', compact('locations', 'search'));
     }
 
     public function create()

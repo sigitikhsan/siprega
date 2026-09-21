@@ -74,6 +74,8 @@ class OperationsTest extends DuskTestCase
             ]);
             $browser->type('reason', 'Koreksi otomatis melalui pengujian browser');
             $this->slow($browser);
+            $browser->scrollIntoView('button[type="submit"]');
+            $this->slow($browser);
             $browser->press('Simpan Koreksi')->acceptDialog()
                 ->waitForLocation('/admin/attendances/'.$attendance->id)
                 ->assertSee('berhasil dikoreksi')

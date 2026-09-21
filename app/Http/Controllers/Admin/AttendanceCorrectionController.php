@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Mengoreksi waktu/status absensi secara administratif dan mencatat jejak perubahannya.
+ * Attendance diperbarui bersama AttendanceCorrection dalam transaksi, lalu cache AdminDashboardData diinvalidasi.
+ * Catatan: koreksi lintas tanggal hanya diizinkan sesuai aturan jenis shift dan wajib menyimpan alasan.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -36,15 +42,29 @@ class AttendanceCorrectionController extends Controller
         $attendanceDate = $attendance->attendance_date->format('Y-m-d');
         $attendance->loadMissing(['workSchedule', 'employee.workSchedule']);
         $schedule = $attendance->workSchedule ?: $attendance->employee->workSchedule;
-        $allowedCheckoutDate = $schedule->shift_type === 'night'
-            ? $attendance->attendance_date->copy()->addDay()->format('Y-m-d')
-            : $attendanceDate;
-
-        if ($newCheckIn->format('Y-m-d') !== $attendanceDate || ($newCheckOut && $newCheckOut->format('Y-m-d') !== $allowedCheckoutDate)) {
+        if (!$schedule) {
             throw ValidationException::withMessages([
-                'check_in' => $schedule->shift_type === 'night'
-                    ? 'Waktu masuk harus pada tanggal shift dan waktu pulang pada hari berikutnya.'
-                    : 'Tanggal koreksi harus sama dengan tanggal absensi.',
+                'check_in' => 'Jadwal absensi tidak tersedia. Periksa data jadwal sebelum melakukan koreksi.',
+            ]);
+        }
+        $usesShiftSchedule = $attendance->employee->uses_shift_schedule
+            || in_array($schedule->shift_type, ['day', 'night'], true);
+        $allowedCheckoutDates = [$attendanceDate];
+        if ($usesShiftSchedule) {
+            $allowedCheckoutDates[] = $attendance->attendance_date->copy()->addDay()->format('Y-m-d');
+        }
+
+        if ($newCheckIn->format('Y-m-d') !== $attendanceDate) {
+            throw ValidationException::withMessages([
+                'check_in' => 'Tanggal masuk harus sama dengan tanggal shift.',
+            ]);
+        }
+
+        if ($newCheckOut && !in_array($newCheckOut->format('Y-m-d'), $allowedCheckoutDates, true)) {
+            throw ValidationException::withMessages([
+                'check_out' => $usesShiftSchedule
+                    ? 'Tanggal pulang petugas shift harus pada tanggal shift atau hari berikutnya.'
+                    : 'Tanggal pulang harus sama dengan tanggal absensi.',
             ]);
         }
 
@@ -66,6 +86,11 @@ class AttendanceCorrectionController extends Controller
             $lockedAttendance->load(['employee.workSchedule', 'workSchedule']);
 
             $schedule = $lockedAttendance->workSchedule ?: $lockedAttendance->employee->workSchedule;
+            if (!$schedule) {
+                throw ValidationException::withMessages([
+                    'check_in' => 'Jadwal absensi tidak tersedia. Periksa data jadwal sebelum melakukan koreksi.',
+                ]);
+            }
             $lateThreshold = Carbon::parse($lockedAttendance->attendance_date->format('Y-m-d').' '.$schedule->check_in_end)
                 ->addMinutes((int) $schedule->late_tolerance);
             $checkoutDate = $schedule->shift_type === 'night'

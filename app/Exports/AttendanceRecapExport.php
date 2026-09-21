@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Orkestrator workbook rekap absensi dengan beberapa worksheet kategori.
+ * Menerima query Attendance terfilter dari controller dan membentuk AttendanceRecapSheet tanpa mengubah database.
+ * Catatan: clone query untuk tiap sheet agar filter tanggal dasar tetap sama dan tidak saling memengaruhi.
+ */
+
 namespace App\Exports;
 
 use Illuminate\Database\Eloquent\Builder;

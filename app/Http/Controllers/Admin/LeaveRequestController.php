@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Memproses daftar, persetujuan, dan penolakan pengajuan izin/sakit oleh admin.
+ * Menghubungkan LeaveRequest dengan Employee dan Attendance serta menginvalidasi ringkasan dashboard.
+ * Catatan: persetujuan harus tetap memeriksa benturan absensi dan dilakukan secara transaksional.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -59,14 +65,14 @@ class LeaveRequestController extends Controller
         $employees = Employee::with('user')->orderBy('employee_number')->get();
         $pendingCount = LeaveRequest::where('status', 'pending')->count();
 
-        return view('admin.leave-requests.index', compact('leaveRequests', 'employees', 'pendingCount', 'filters', 'search'));
+        return view('admin.leave-requests.request-list', compact('leaveRequests', 'employees', 'pendingCount', 'filters', 'search'));
     }
 
     public function show(LeaveRequest $leaveRequest)
     {
         $leaveRequest->load(['employee.user', 'employee.workSchedule', 'reviewer']);
 
-        return view('admin.leave-requests.show', compact('leaveRequest'));
+        return view('admin.leave-requests.request-detail', compact('leaveRequest'));
     }
 
     public function review(Request $request, LeaveRequest $leaveRequest)

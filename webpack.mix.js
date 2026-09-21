@@ -2,16 +2,22 @@ const mix = require('laravel-mix');
 
 /*
  |--------------------------------------------------------------------------
- | Mix Asset Management
+ | Build aset aplikasi
  |--------------------------------------------------------------------------
  |
- | Mix provides a clean, fluent API for defining some Webpack build steps
- | for your Laravel applications. By default, we are compiling the CSS
- | file for the application as well as bundling up all the JS files.
+ | Mengompilasi bundle Chart.js admin, React ticker pegawai, dan CSS aplikasi.
+ | Bundle dipisah agar setiap halaman hanya mengunduh fitur yang digunakan;
+ | daftar version() menjadi sumber cache-busting untuk helper mix() di Blade.
  |
  */
 
-mix.js('resources/js/app.js', 'public/js')
-    .postCss('resources/css/app.css', 'public/css', [
-        //
-    ]);
+mix.js('resources/js/admin-chart.js', 'public/js/admin-chart.js')
+    .js('resources/js/employee-attendance.js', 'public/js/employee-attendance.js')
+    .react('resources/js/employee-schedule.jsx', 'public/js/employee-schedule.js')
+    .version([
+        'public/css/bootstrap-app.min.css',
+        'public/js/admin-chart.js',
+        'public/js/employee-attendance.js',
+        'public/js/employee-schedule.js'
+    ])
+    .disableNotifications();

@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Membatasi route pegawai hanya untuk User aktif dengan role employee.
+ * Menjadi lapisan akses sebelum controller dashboard, absensi, profil, riwayat, dan izin/sakit.
+ * Catatan: controller tetap harus membatasi query pada Employee milik user yang sedang login.
+ */
+
 namespace App\Http\Middleware;
 
 use Closure;

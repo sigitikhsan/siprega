@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Menambahkan header keamanan HTTP umum pada respons aplikasi.
+ * Berjalan sebagai middleware global/kelompok melalui Kernel dan melengkapi CSRF, autentikasi, serta validasi input.
+ * Catatan: kebijakan header production harus diselaraskan lagi dengan HTTPS dan konfigurasi Apache saat deployment.
+ */
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -12,8 +18,8 @@ class SecurityHeaders
         $response = $next($request);
 
         $policy = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; "
-            . "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            . "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            . "script-src 'self' 'unsafe-inline'; "
+            . "style-src 'self' 'unsafe-inline'; "
             . "img-src 'self' data:; font-src 'self' data:; connect-src 'self'";
 
         $response->headers->set('Content-Security-Policy', $policy);

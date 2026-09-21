@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * CRUD pengajuan izin/sakit milik pegawai beserta lampiran pendukung.
+ * LeaveRequest terikat ke Employee; validasi file memakai AllowedLeaveAttachment dan perubahan memengaruhi dashboard admin.
+ * Catatan: file disimpan dengan nama buatan server dan pengajuan tidak boleh saling bertumpang tindih.
+ */
+
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
@@ -23,7 +29,7 @@ class LeaveRequestController extends Controller
             ->when($filters['type'] ?? null, function ($query, $type) { $query->where('type', $type); })
             ->when($filters['status'] ?? null, function ($query, $status) { $query->where('status', $status); })
             ->latest('start_date')->paginate(10)->appends($filters);
-        return view('employee.leave-requests.index', compact('leaveRequests', 'filters'));
+        return view('employee.leave-requests.request-list', compact('leaveRequests', 'filters'));
     }
 
     public function create()
@@ -44,11 +50,8 @@ class LeaveRequestController extends Controller
         $employee = $request->user()->employee()->firstOrFail();
         $start = Carbon::parse($validated['start_date']);
         $end = $start->copy()->addDays($validated['duration'] - 1);
-        $overlaps = $employee->leaveRequests()->whereIn('status', ['pending', 'approved'])->get()->contains(function ($leave) use ($start, $end) {
-            $existingStart = $leave->start_date->copy()->startOfDay();
-            $existingEnd = $existingStart->copy()->addDays($leave->duration - 1);
-            return $existingStart->lte($end) && $existingEnd->gte($start);
-        });
+        $overlaps = $employee->leaveRequests()->whereIn('status', ['pending', 'approved'])
+            ->overlappingDates($start, $end)->exists();
         if ($overlaps) throw ValidationException::withMessages(['start_date' => 'Tanggal tersebut bertabrakan dengan pengajuan lain yang masih aktif.']);
 
         $path = null;
@@ -68,7 +71,7 @@ class LeaveRequestController extends Controller
     {
         $this->authorizeOwner($request, $leaveRequest);
         $leaveRequest->load('reviewer');
-        return view('employee.leave-requests.show', compact('leaveRequest'));
+        return view('employee.leave-requests.request-detail', compact('leaveRequest'));
     }
 
     public function destroy(Request $request, LeaveRequest $leaveRequest)

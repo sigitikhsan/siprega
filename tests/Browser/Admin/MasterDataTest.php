@@ -61,10 +61,14 @@ class MasterDataTest extends DuskTestCase
                 ->type('check_out_start', '16:00')
                 ->select('status', 'active');
             $this->slow($browser);
+            $browser->scrollIntoView('button[type="submit"]');
+            $this->slow($browser);
             $browser->press('Simpan')->waitForLocation('/admin/work-schedules')
                 ->assertSee('Jadwal Dusk')->assertSee('berhasil ditambahkan');
             $this->slow($browser);
             $browser->clickLink('Edit')->type('name', 'Jadwal Dusk Diperbarui');
+            $this->slow($browser);
+            $browser->scrollIntoView('button[type="submit"]');
             $this->slow($browser);
             $browser->press('Simpan')->waitForLocation('/admin/work-schedules')
                 ->assertSee('Jadwal Dusk Diperbarui');
@@ -98,10 +102,14 @@ class MasterDataTest extends DuskTestCase
                 ->select('status', 'active')
                 ->type('position', 'Staf Pengujian');
             $this->slow($browser);
+            $browser->scrollIntoView('button[type="submit"]');
+            $this->slow($browser);
             $browser->press('Simpan')->waitForLocation('/admin/employees')
                 ->assertSee('Pegawai Dusk')->assertSee('berhasil ditambahkan');
             $this->slow($browser);
             $browser->clickLink('Edit')->type('name', 'Pegawai Dusk Diperbarui');
+            $this->slow($browser);
+            $browser->scrollIntoView('button[type="submit"]');
             $this->slow($browser);
             $browser->press('Simpan')->waitForLocation('/admin/employees')
                 ->assertSee('Pegawai Dusk Diperbarui');

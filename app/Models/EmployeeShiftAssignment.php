@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Penugasan jadwal atau hari libur seorang pegawai keamanan pada satu tanggal shift.
+ * BelongsTo Employee dan WorkSchedule serta dapat memiliki satu Attendance melalui shift_assignment_id.
+ * Catatan: kombinasi employee_id dan shift_date harus unik agar hanya ada satu keputusan shift per hari.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;

@@ -20,11 +20,14 @@ class AuthenticationTest extends DuskTestCase
             $this->loginAsAdmin($browser, $admin)
                 ->assertPathIs('/admin/dashboard')
                 ->assertSee('Dashboard Admin')
-                ->assertSee('PEGAWAI AKTIF')
+                ->assertSee('Pegawai aktif')
                 ->clickLink('Data Pegawai')
                 ->waitForLocation('/admin/employees');
             $this->slow($browser);
             $browser->assertSee('Data Pegawai')
+                ->scrollIntoView('.logout-button');
+            $this->slow($browser);
+            $browser
                 ->press('Keluar')
                 ->waitForLocation('/login')
                 ->assertPathIs('/login');

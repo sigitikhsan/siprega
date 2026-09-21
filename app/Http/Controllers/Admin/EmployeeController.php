@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * CRUD akun dan profil pegawai, termasuk jadwal dasar, status akun, dan penghapusan aman.
+ * Menulis User dan Employee dalam transaksi serta berelasi dengan WorkSchedule dan penugasan shift.
+ * Catatan: riwayat absensi tidak dihapus; pegawai yang sudah memiliki histori dinonaktifkan untuk menjaga integritas data.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -7,6 +13,7 @@ use App\Models\Employee;
 use App\Models\User;
 use App\Models\WorkSchedule;
 use App\Services\AdminDashboardData;
+use App\Services\ProfileAvatarService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -38,7 +45,7 @@ class EmployeeController extends Controller
                 'search' => $search,
             ]);
 
-        return view('admin.employees.index', compact('employees', 'search'));
+        return view('admin.employees.employee-list', compact('employees', 'search'));
     }
 
     public function create()
@@ -126,9 +133,11 @@ class EmployeeController extends Controller
                 ->with('success', 'Pegawai tidak dihapus karena memiliki riwayat absensi/izin. Akun berhasil dinonaktifkan dan penugasan shift mendatang dibatalkan.');
         }
 
+        $avatarPath = $employee->avatar_path;
         DB::transaction(function () use ($employee) {
             $employee->user->delete();
         });
+        app(ProfileAvatarService::class)->delete($avatarPath);
         app(AdminDashboardData::class)->forgetAll();
 
         return redirect()->route('admin.employees.index')

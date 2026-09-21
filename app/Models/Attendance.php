@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Rekaman presensi per pegawai dan tanggal shift, termasuk waktu, status, lokasi, serta bukti GPS masuk/pulang.
+ * BelongsTo Employee, Location, WorkSchedule, dan EmployeeShiftAssignment; memiliki banyak AttendanceCorrection.
+ * Catatan: attendance_date adalah tanggal shift, sehingga shift malam dapat selesai pada tanggal kalender berikutnya.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;

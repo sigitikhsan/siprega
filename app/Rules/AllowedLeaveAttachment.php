@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Aturan validasi khusus lampiran izin/sakit berdasarkan isi file, bukan hanya nama ekstensinya.
+ * Dipakai Employee LeaveRequestController sebelum file diteruskan ke Storage.
+ * Catatan: pertahankan allowlist MIME/format dan batas ukuran untuk mencegah unggahan file aktif berbahaya.
+ */
+
 namespace App\Rules;
 
 use Illuminate\Contracts\Validation\Rule;

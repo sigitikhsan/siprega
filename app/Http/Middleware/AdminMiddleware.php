@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Membatasi route admin hanya untuk User aktif dengan role admin.
+ * Dipasang melalui Kernel dan kelompok route web; autentikasi dasar tetap ditangani middleware auth.
+ * Catatan: jangan mengandalkan penyembunyian menu sebagai otorisasi—pemeriksaan ini harus tetap di server.
+ */
+
 namespace App\Http\Middleware;
 
 use Closure;

@@ -23,7 +23,11 @@ class SecurityHardeningTest extends TestCase
             ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
             ->assertHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=()');
 
-        $this->assertStringContainsString("default-src 'self'", $response->headers->get('Content-Security-Policy'));
+        $policy = $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("default-src 'self'", $policy);
+        $this->assertStringContainsString("script-src 'self' 'unsafe-inline'", $policy);
+        $this->assertStringContainsString("style-src 'self' 'unsafe-inline'", $policy);
+        $this->assertStringNotContainsString('cdn.jsdelivr.net', $policy);
     }
 
     public function test_admin_password_change_rotates_remember_token(): void

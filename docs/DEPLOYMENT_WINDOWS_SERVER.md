@@ -28,17 +28,19 @@ php -r "echo class_exists('finfo') ? 'fileinfo OK' : 'fileinfo TIDAK ADA';"
 
 ## 3. Penempatan aplikasi
 
-1. Salin source code ke folder versi/release baru, bukan menimpa release aktif.
+1. Gunakan source code di `D:\Laravel\absensi-pegawai`. Jika kelak memakai pola folder release, perbarui `DocumentRoot` secara eksplisit dan jangan menyisakan dua salinan aktif yang membingungkan.
 2. Jalankan `composer install --no-dev --prefer-dist --optimize-autoloader`.
 3. Salin `.env.production.example` menjadi `.env`, kemudian isi secret langsung di server.
 4. Jalankan `php artisan key:generate` hanya untuk instalasi baru. Jangan mengganti `APP_KEY` pada aplikasi yang sudah memiliki data/session terenkripsi.
 5. Arahkan document root web server ke folder `public`, bukan root project.
 
-Contoh:
+Lokasi yang disepakati untuk deployment ini:
 
 ```text
-D:\Aplikasi\SiPrega\current\public
+D:\Laravel\absensi-pegawai\public
 ```
+
+Instalasi XAMPP boleh tetap berada di `C:\xampp`; Apache Windows mendukung `DocumentRoot` lintas drive.
 
 Folder `.env`, `vendor`, `storage`, source PHP, dan backup tidak boleh menjadi document root.
 
@@ -82,8 +84,8 @@ Jangan memberikan `Everyone: Full Control`. Konfigurasi ACL harus dilakukan admi
 
 ```powershell
 php artisan down --retry=60
-php artisan migrate --force
 php artisan optimize:clear
+php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
@@ -91,6 +93,19 @@ php artisan up
 ```
 
 Migration Dusk dan perintah `migrate:fresh` tidak boleh dijalankan pada database produksi.
+PHPUnit dan Dusk juga tidak boleh dijalankan dengan `.env` production.
+Persiapan database pengujian lokal dijelaskan terpisah pada `docs/TESTING_DATABASES.md`.
+
+### Pemisahan database
+
+- `absensi_pegawai`: development/demo lokal; boleh berisi data presentasi.
+- `absensi_pegawai_prod`: production; hanya berisi data operasional kantor.
+- `absensi_pegawai_testing`: PHPUnit/Feature test lokal.
+- `absensi_pegawai_dusk`: Laravel Dusk lokal.
+
+Setiap perubahan `.env` harus diikuti `php artisan optimize:clear` sebelum migration atau
+verifikasi koneksi. Jangan menyalin cache konfigurasi dari komputer lain dan jangan menyalin
+database demo ke production.
 
 ## 7. Verifikasi setelah deployment
 

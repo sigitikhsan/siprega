@@ -1,9 +1,16 @@
 <?php
 
+/**
+ * Menangani challenge GPS, absen masuk, dan absen pulang pegawai.
+ * Berelasi dengan Employee, Attendance, Location, WorkSchedule/shift, izin, dan AdminDashboardData.
+ * Catatan: nonce sekali pakai, validasi GPS, transaksi, lockForUpdate, serta unique constraint adalah lapisan anti-duplikasi/race condition.
+ */
+
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Employee;
 use App\Models\Location;
 use App\Services\EmployeeScheduleResolver;
 use App\Services\AdminDashboardData;
@@ -36,42 +43,57 @@ class AttendanceController extends Controller
         $position = $this->validatePosition($request);
         $this->consumeChallenge($request, 'check_in');
         $employee = $request->user()->employee()->with('workSchedule')->firstOrFail();
-        list($schedule, $assignment, $shiftDate) = $resolver->forCurrentMoment($employee, now());
-        if ($assignment && $assignment->is_day_off) {
-            return back()->with('error', 'Hari ini Anda dijadwalkan libur sehingga absensi tidak dapat dilakukan.');
-        }
-        $approvedLeave = $employee->leaveRequests()->where('status', 'approved')
-            ->whereDate('start_date', '<=', $shiftDate)->get()->first(function ($leave) use ($shiftDate) {
-                return $leave->start_date->copy()->addDays($leave->duration - 1)->gte($shiftDate);
-            });
-        if ($approvedLeave) {
-            return back()->with('error', 'Anda tercatat '.($approvedLeave->type === 'sick' ? 'sakit' : 'izin').' hari ini sehingga tidak perlu melakukan absen masuk.');
-        }
-
-        if (!$schedule || $schedule->status !== 'active') {
-            return back()->with('error', 'Anda tidak memiliki jadwal aktif hari ini. Hubungi administrator.');
-        }
-
         $now = now();
-        $attendanceDate = $shiftDate->toDateString();
-        $start = Carbon::parse($attendanceDate.' '.$schedule->check_in_start);
-        if ($now->lt($start)) {
-            return back()->with('error', 'Absen masuk belum dibuka. Jadwal dimulai pukul '.$start->format('H:i').'.');
-        }
-
-        [$location, $distance] = $this->resolveLocation($position);
-        [$isSuspicious, $riskNote] = $this->locationRiskFromPreviousAttendance($employee->id, $position, $now);
-        $lateAt = Carbon::parse($attendanceDate.' '.$schedule->check_in_end)
-            ->addMinutes((int) $schedule->late_tolerance);
 
         try {
-            $attendance = DB::transaction(function () use ($employee, $location, $position, $distance, $now, $lateAt, $schedule, $assignment, $attendanceDate, $isSuspicious, $riskNote) {
-                if (Attendance::where('employee_id', $employee->id)->whereDate('attendance_date', $attendanceDate)->lockForUpdate()->exists()) {
+            $attendance = DB::transaction(function () use ($employee, $resolver, $position, $now) {
+                // Serialize check-in with shift changes and leave approvals for this employee.
+                $lockedEmployee = Employee::with('workSchedule')->whereKey($employee->id)
+                    ->lockForUpdate()->firstOrFail();
+
+                $openAttendance = Attendance::where('employee_id', $lockedEmployee->id)
+                    ->whereNotNull('check_in')
+                    ->whereNull('check_out')
+                    ->lockForUpdate()
+                    ->latest('check_in')
+                    ->first();
+                if ($openAttendance) {
+                    throw ValidationException::withMessages([
+                        'attendance' => $this->openAttendanceMessage($openAttendance),
+                    ]);
+                }
+
+                list($schedule, $assignment, $shiftDate) = $resolver->forCurrentMoment($lockedEmployee, $now);
+                if ($assignment && $assignment->is_day_off) {
+                    throw new \DomainException('Hari ini Anda dijadwalkan libur sehingga absensi tidak dapat dilakukan.');
+                }
+
+                $approvedLeave = $lockedEmployee->leaveRequests()->where('status', 'approved')
+                    ->overlappingDates($shiftDate)->first();
+                if ($approvedLeave) {
+                    throw new \DomainException('Anda tercatat '.($approvedLeave->type === 'sick' ? 'sakit' : 'izin').' hari ini sehingga tidak perlu melakukan absen masuk.');
+                }
+                if (!$schedule || $schedule->status !== 'active') {
+                    throw new \DomainException('Anda tidak memiliki jadwal aktif hari ini. Hubungi administrator.');
+                }
+
+                $attendanceDate = $shiftDate->toDateString();
+                $start = Carbon::parse($attendanceDate.' '.$schedule->check_in_start);
+                if ($now->lt($start)) {
+                    throw new \DomainException('Absen masuk belum dibuka. Jadwal dimulai pukul '.$start->format('H:i').'.');
+                }
+                $lateAt = Carbon::parse($attendanceDate.' '.$schedule->check_in_end)
+                    ->addMinutes((int) $schedule->late_tolerance);
+
+                if (Attendance::where('employee_id', $lockedEmployee->id)->where('attendance_date', $attendanceDate)->lockForUpdate()->exists()) {
                     throw ValidationException::withMessages(['attendance' => 'Anda sudah melakukan absen masuk hari ini.']);
                 }
 
+                [$location, $distance] = $this->resolveLocation($position);
+                [$isSuspicious, $riskNote] = $this->locationRiskFromPreviousAttendance($lockedEmployee->id, $position, $now);
+
                 return Attendance::create([
-                    'employee_id' => $employee->id,
+                    'employee_id' => $lockedEmployee->id,
                     'location_id' => $location->id,
                     'work_schedule_id' => $schedule->id,
                     'shift_assignment_id' => $assignment ? $assignment->id : null,
@@ -87,6 +109,8 @@ class AttendanceController extends Controller
                     'check_in_status' => $now->gt($lateAt) ? 'late' : 'present',
                 ]);
             });
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
         } catch (\Illuminate\Database\QueryException $exception) {
             return back()->with('error', 'Anda sudah melakukan absen masuk hari ini.');
         }
@@ -104,7 +128,7 @@ class AttendanceController extends Controller
         [$location, $distance] = $this->resolveLocation($position);
         $now = now();
         $attendance = Attendance::with('workSchedule')->where('employee_id', $employee->id)
-            ->whereNotNull('check_in')->whereNull('check_out')->where('check_in', '>=', now()->subDay())->latest('check_in')->first();
+            ->whereNotNull('check_in')->whereNull('check_out')->latest('check_in')->first();
 
         if (!$attendance || !$attendance->check_in) return back()->with('error', 'Anda belum melakukan absen masuk hari ini.');
         $schedule = $attendance->workSchedule ?: $employee->workSchedule;
@@ -193,6 +217,13 @@ class AttendanceController extends Controller
     private function challengeKey(string $token): string
     {
         return 'attendance_challenge:'.hash('sha256', $token);
+    }
+
+    private function openAttendanceMessage(Attendance $attendance): string
+    {
+        return 'Anda masih memiliki absensi tanggal '
+            .$attendance->attendance_date->format('d/m/Y')
+            .' yang belum diselesaikan. Lakukan absen pulang atau hubungi administrator untuk melakukan koreksi.';
     }
 
     private function resolveLocation(array $position): array

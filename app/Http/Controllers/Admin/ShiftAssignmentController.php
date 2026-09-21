@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Mengatur shift harian atau hari libur khusus pegawai keamanan.
+ * Berelasi dengan Employee, WorkSchedule, EmployeeShiftAssignment, dan Attendance untuk mencegah perubahan shift yang sudah dipakai.
+ * Catatan: urutan lock pegawai lalu absensi/penugasan harus sama dengan check-in agar aman dari race condition.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -7,6 +13,7 @@ use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\Attendance;
 use App\Models\WorkSchedule;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,12 +23,12 @@ class ShiftAssignmentController extends Controller
     public function index(Request $request)
     {
         $validated = $request->validate(['date' => ['nullable', 'date']]);
-        $date = $validated['date'] ?? today()->toDateString();
+        $date = Carbon::parse($validated['date'] ?? today())->toDateString();
         $employees = $this->securityEmployees()->with('user')->orderBy('employee_number')->get();
         $shiftSchedules = WorkSchedule::where('status', 'active')->whereIn('shift_type', ['day', 'night'])->orderBy('name')->get();
-        $assignments = EmployeeShiftAssignment::whereDate('shift_date', $date)->get()->keyBy('employee_id');
+        $assignments = EmployeeShiftAssignment::where('shift_date', $date)->get()->keyBy('employee_id');
 
-        return view('admin.shift-assignments.index', compact('date', 'employees', 'shiftSchedules', 'assignments'));
+        return view('admin.shift-assignments.security-shift-schedule', compact('date', 'employees', 'shiftSchedules', 'assignments'));
     }
 
     public function store(Request $request)
@@ -37,10 +44,12 @@ class ShiftAssignmentController extends Controller
                 }
             }],
         ]);
-        $allowedEmployees = $this->securityEmployees()->pluck('id')->map(function ($id) { return (string) $id; })->all();
+        $employees = $this->securityEmployees()->get(['id', 'work_schedule_id'])->keyBy('id');
+        $assignments = $validated['assignments'] ?? [];
+        $date = Carbon::parse($validated['shift_date'])->toDateString();
 
-        foreach ($validated['assignments'] ?? [] as $employeeId => $scheduleId) {
-            if (!in_array((string) $employeeId, $allowedEmployees, true)) {
+        foreach ($assignments as $employeeId => $scheduleId) {
+            if (!$employees->has($employeeId)) {
                 throw ValidationException::withMessages([
                     'assignments' => 'Penugasan memuat pegawai yang tidak aktif atau tidak valid.',
                 ]);
@@ -51,49 +60,54 @@ class ShiftAssignmentController extends Controller
                 ]);
             }
 
-            $attendanceExists = Attendance::where('employee_id', $employeeId)
-                ->whereDate('attendance_date', $validated['shift_date'])
-                ->exists();
-            if ($attendanceExists) {
-                $currentAssignment = EmployeeShiftAssignment::where('employee_id', $employeeId)
-                    ->whereDate('shift_date', $validated['shift_date'])
-                    ->first();
+        }
+
+        DB::transaction(function () use ($assignments, $date) {
+            if (!$assignments) return;
+
+            $employeeIds = array_keys($assignments);
+            // Use the same parent-row lock order as employee check-in so a shift
+            // cannot change while the attendance snapshot is being created.
+            $lockedEmployees = Employee::whereIn('id', $employeeIds)
+                ->lockForUpdate()->get(['id', 'work_schedule_id'])->keyBy('id');
+            $attended = Attendance::whereIn('employee_id', $employeeIds)
+                ->where('attendance_date', $date)->lockForUpdate()->pluck('employee_id')->flip();
+            $currentAssignments = EmployeeShiftAssignment::whereIn('employee_id', $employeeIds)
+                ->where('shift_date', $date)->lockForUpdate()->get()->keyBy('employee_id');
+            $rows = $deleteIds = [];
+            foreach ($assignments as $employeeId => $scheduleId) {
+                $currentAssignment = $currentAssignments->get($employeeId);
                 $currentValue = $currentAssignment && $currentAssignment->is_day_off
                     ? 'off'
                     : (string) optional($currentAssignment)->work_schedule_id;
-                if ($currentValue !== (string) ($scheduleId ?: '')) {
+                if ($attended->has($employeeId) && $currentValue !== (string) ($scheduleId ?: '')) {
                     throw ValidationException::withMessages([
                         'assignments.'.$employeeId => 'Shift tidak dapat diubah karena pegawai sudah memiliki absensi pada tanggal tersebut.',
                     ]);
                 }
-            }
-        }
-
-        DB::transaction(function () use ($validated, $allowedSchedules, $allowedEmployees) {
-            foreach ($validated['assignments'] ?? [] as $employeeId => $scheduleId) {
+                // Preserve the row ID, notes and timestamps for unchanged assignments.
+                if ($currentValue === (string) ($scheduleId ?: '')) continue;
                 if (!$scheduleId) {
-                    EmployeeShiftAssignment::where('employee_id', $employeeId)->whereDate('shift_date', $validated['shift_date'])->delete();
+                    $deleteIds[] = $employeeId;
                     continue;
                 }
-                if ($scheduleId === 'off') {
-                    $employee = Employee::findOrFail($employeeId);
-                    $fallbackScheduleId = optional(EmployeeShiftAssignment::where('employee_id', $employeeId)
-                        ->whereDate('shift_date', $validated['shift_date'])->first())->work_schedule_id
-                        ?: $employee->work_schedule_id;
-                    EmployeeShiftAssignment::updateOrCreate(
-                        ['employee_id' => $employeeId, 'shift_date' => $validated['shift_date']],
-                        ['work_schedule_id' => $fallbackScheduleId, 'is_day_off' => true]
-                    );
-                    continue;
-                }
-                EmployeeShiftAssignment::updateOrCreate(
-                    ['employee_id' => $employeeId, 'shift_date' => $validated['shift_date']],
-                    ['work_schedule_id' => $scheduleId, 'is_day_off' => false]
-                );
+                $rows[] = [
+                    'employee_id' => $employeeId, 'shift_date' => $date,
+                    'work_schedule_id' => $scheduleId === 'off'
+                        ? (optional($currentAssignment)->work_schedule_id ?: $lockedEmployees->get($employeeId)->work_schedule_id)
+                        : $scheduleId,
+                    'is_day_off' => $scheduleId === 'off',
+                ];
+            }
+            if ($deleteIds) {
+                EmployeeShiftAssignment::whereIn('employee_id', $deleteIds)->where('shift_date', $date)->delete();
+            }
+            if ($rows) {
+                EmployeeShiftAssignment::upsert($rows, ['employee_id', 'shift_date'], ['work_schedule_id', 'is_day_off']);
             }
         });
 
-        return redirect()->route('admin.shift-assignments.index', ['date' => $validated['shift_date']])
+        return redirect()->route('admin.shift-assignments.index', ['date' => $date])
             ->with('success', 'Penugasan shift berhasil disimpan.');
     }
 

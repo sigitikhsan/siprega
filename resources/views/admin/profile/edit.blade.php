@@ -8,7 +8,8 @@
     <style>
         .profile-card { max-width: 760px; margin-inline: auto; overflow: hidden; background: var(--warm-surface); border: 1px solid var(--warm-border); border-radius: 1.1rem; }
         .profile-header { padding: 2rem 1.5rem 1.5rem; text-align: center; }
-        .profile-card-avatar { width: 88px; height: 88px; display: grid; place-items: center; margin-inline: auto; color: #174f9f; background: #eef5ff; border: 1px solid #d9e6f8; border-radius: 50%; }
+        .profile-card-avatar { width: 88px; height: 88px; display: grid; place-items: center; margin-inline: auto; overflow: hidden; color: #174f9f; background: #eef5ff; border: 1px solid #d9e6f8; border-radius: 50%; }
+        .profile-card-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: 50%; }
         .profile-role { display: inline-block; padding: .3rem .75rem; color: #5b6777; background: #f1f3f5; border-radius: 999px; font-size: .78rem; }
         .profile-details { margin: 0 1.5rem; border-top: 1px solid var(--warm-border); }
         .profile-detail { display: flex; align-items: center; gap: 1rem; padding: 1rem 0; }
@@ -25,7 +26,13 @@
 
     <section class="profile-card">
         <header class="profile-header">
-            <div class="profile-card-avatar mb-3"><x-icon name="user" size="42" /></div>
+            <div class="profile-card-avatar mb-3">
+                @if ($user->avatar_path)
+                    <img src="{{ route('admin.profile.avatar', ['v' => $user->updated_at->timestamp]) }}" width="88" height="88" alt="Foto profil {{ $user->name }}" decoding="async">
+                @else
+                    <x-icon name="user" size="42" />
+                @endif
+            </div>
             <h2 class="h4 fw-semibold mb-2">{{ $user->name }}</h2>
             <span class="profile-role">Administrator</span>
         </header>
@@ -49,7 +56,7 @@
         <nav class="profile-settings" aria-label="Pengaturan akun">
             <a class="profile-setting" href="{{ route('admin.profile.account') }}">
                 <span class="profile-setting-icon"><x-icon name="edit" /></span>
-                <span><span class="d-block fw-semibold">Edit Informasi Akun</span><small class="text-muted">Ubah nama, username, dan alamat email.</small></span>
+                <span><span class="d-block fw-semibold">Edit Informasi Akun</span><small class="text-muted">Ubah nama, username, alamat email, dan foto profil.</small></span>
                 <x-icon name="chevron" class="profile-setting-arrow" />
             </a>
             <a class="profile-setting" href="{{ route('admin.profile.password.edit') }}">

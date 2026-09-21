@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Jejak perubahan administratif terhadap sebuah Attendance.
+ * Setiap catatan belongsTo Attendance dan User admin melalui corrected_by, serta menyimpan nilai sebelum/sesudah.
+ * Catatan: data ini merupakan audit koreksi dan tidak boleh diubah saat absensi induk ditampilkan.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;

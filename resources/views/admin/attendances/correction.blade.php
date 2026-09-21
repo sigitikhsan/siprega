@@ -18,8 +18,8 @@
             <div class="row g-3 mb-4">
                 <div class="col-md-6"><div class="small text-muted">Pegawai</div><div class="fw-semibold">{{ $attendance->employee->user->name }}</div></div>
                 <div class="col-md-6"><div class="small text-muted">Nomor pegawai</div><div class="fw-semibold">{{ $attendance->employee->employee_number }}</div></div>
-                <div class="col-md-6"><div class="small text-muted">Jadwal</div><div class="fw-semibold">{{ optional($attendance->workSchedule)->name ?: $attendance->employee->workSchedule->name }}</div></div>
-                <div class="col-md-6"><div class="small text-muted">Lokasi</div><div class="fw-semibold">{{ $attendance->location->name }}</div></div>
+                <div class="col-md-6"><div class="small text-muted">Jadwal</div><div class="fw-semibold">{{ optional($attendance->workSchedule)->name ?: (optional(optional($attendance->employee)->workSchedule)->name ?: '-') }}</div></div>
+                <div class="col-md-6"><div class="small text-muted">Lokasi</div><div class="fw-semibold">{{ optional($attendance->location)->name ?: '-' }}</div></div>
             </div>
 
             <form method="POST" action="{{ route('admin.attendances.correction.update', $attendance) }}">

@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Profil kepegawaian yang memperluas akun User dengan nomor, jabatan, telepon, dan konfigurasi jadwal.
+ * Berelasi ke User, WorkSchedule, Attendance, LeaveRequest, dan EmployeeShiftAssignment.
+ * Catatan: uses_shift_schedule membedakan pegawai fleksibel dari pegawai dengan jadwal tetap.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +21,9 @@ class Employee extends Model
         'uses_shift_schedule',
         'employee_number',
         'phone',
+        'avatar_path',
+        'profile_accent',
+        'bio',
         'position',
         'company',
         'join_date',

@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Peta utama endpoint web SiPrega untuk autentikasi, area admin, dan area pegawai.
+ * Route menghubungkan URL ke controller serta middleware role; aturan bisnis tetap berada di controller/service.
+ * Catatan: pertahankan middleware auth/admin/employee saat menambah endpoint agar otorisasi tidak terlewati.
+ */
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\EmployeeController;
@@ -32,9 +38,6 @@ Route::get('/leave-requests/{leaveRequest}/attachment', [EmployeeLeaveRequestCon
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/live', [DashboardController::class, 'live'])
-        ->middleware('throttle:12,1')
-        ->name('dashboard.live');
 
     Route::resource('employees', EmployeeController::class)->except('show');
     Route::resource('work-schedules', WorkScheduleController::class)->except('show');
@@ -42,7 +45,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/shift-assignments', [ShiftAssignmentController::class, 'store'])->name('shift-assignments.store');
     Route::resource('locations', LocationController::class)->except('show');
     Route::get('/attendances', [AttendanceController::class, 'index'])->name('attendances.index');
-    Route::get('/attendances/export', [AttendanceController::class, 'export'])->middleware('throttle:3,1')->name('attendances.export');
     Route::get('/attendance-recap', [AttendanceController::class, 'index'])->name('attendance-recap.index');
     Route::get('/attendance-recap/export', [AttendanceController::class, 'export'])->middleware('throttle:3,1')->name('attendance-recap.export');
     Route::get('/attendances/{attendance}/correction', [AttendanceCorrectionController::class, 'edit'])->name('attendances.correction.edit');
@@ -53,6 +55,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('/leave-requests/{leaveRequest}/review', [LeaveRequestController::class, 'review'])->name('leave-requests.review');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::get('/profile/avatar', [ProfileController::class, 'avatar'])->name('profile.avatar');
     Route::get('/profile/account', [ProfileController::class, 'editAccount'])->name('profile.account');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password.edit');
@@ -72,6 +75,7 @@ Route::middleware(['auth', 'employee'])->group(function () {
     Route::get('/my-leave-requests/{leaveRequest}', [EmployeeLeaveRequestController::class, 'show'])->name('employee.leave-requests.show');
     Route::delete('/my-leave-requests/{leaveRequest}', [EmployeeLeaveRequestController::class, 'destroy'])->name('employee.leave-requests.destroy');
     Route::get('/profile', [EmployeeProfileController::class, 'show'])->name('employee.profile.show');
+    Route::get('/profile/avatar', [EmployeeProfileController::class, 'avatar'])->name('employee.profile.avatar');
     Route::get('/profile/edit', [EmployeeProfileController::class, 'edit'])->name('employee.profile.edit');
     Route::put('/profile', [EmployeeProfileController::class, 'update'])->name('employee.profile.update');
     Route::get('/profile/password', [EmployeeProfileController::class, 'editPassword'])->name('employee.profile.password.edit');

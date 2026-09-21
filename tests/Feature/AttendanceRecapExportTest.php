@@ -73,11 +73,57 @@ class AttendanceRecapExportTest extends TestCase
         ]))->assertSessionHasErrors('date_to');
     }
 
-    public function test_export_requires_start_and_end_dates()
+    public function test_export_allows_empty_date_filters()
     {
+        Carbon::setTestNow('2035-09-05 10:00:00');
+        Excel::fake();
+
         $this->actingAs($this->admin())
             ->get(route('admin.attendance-recap.export'))
-            ->assertSessionHasErrors(['date_from', 'date_to']);
+            ->assertOk();
+
+        Excel::assertDownloaded('rekap-absensi-20350905-100000.xlsx');
+    }
+
+    public function test_export_accepts_only_a_start_date()
+    {
+        Carbon::setTestNow('2035-09-05 10:00:00');
+        $admin = $this->admin();
+        $location = $this->location();
+        $schedule = $this->schedule('Mulai Saja', 'fixed');
+        $employee = $this->employee('Pegawai Mulai', $schedule);
+        $included = $this->attendance($employee, $schedule, $location, '2035-09-03', 'present', true);
+        $this->attendance($employee, $schedule, $location, '2035-08-20', 'present', true);
+        Excel::fake();
+
+        $this->actingAs($admin)->get(route('admin.attendance-recap.export', [
+            'date_from' => '2035-09-01',
+        ]))->assertOk();
+
+        Excel::assertDownloaded('rekap-absensi-20350905-100000.xlsx', function (AttendanceRecapExport $export) use ($included) {
+            return $export->query()->pluck('id')->all() === [$included->id];
+        });
+    }
+
+    public function test_export_accepts_only_an_end_date()
+    {
+        Carbon::setTestNow('2035-09-05 10:00:00');
+        $admin = $this->admin();
+        $location = $this->location();
+        $schedule = $this->schedule('Akhir Saja', 'fixed');
+        $employee = $this->employee('Pegawai Akhir', $schedule);
+        $included = $this->attendance($employee, $schedule, $location, '2035-08-20', 'present', true);
+        $excluded = $this->attendance($employee, $schedule, $location, '2035-09-03', 'present', true);
+        Excel::fake();
+
+        $this->actingAs($admin)->get(route('admin.attendance-recap.export', [
+            'date_to' => '2035-08-31',
+        ]))->assertOk();
+
+        Excel::assertDownloaded('rekap-absensi-20350905-100000.xlsx', function (AttendanceRecapExport $export) use ($included, $excluded) {
+            $ids = $export->query()->pluck('id');
+            return $ids->contains($included->id) && !$ids->contains($excluded->id);
+        });
     }
 
     public function test_export_rejects_a_range_longer_than_thirty_one_days()
