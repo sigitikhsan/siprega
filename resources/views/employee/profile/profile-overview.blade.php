@@ -35,7 +35,6 @@
         <div class="employee-profile-row"><span class="text-muted">Email</span><span class="text-end">{{ $user->email ?: 'Belum diisi' }}</span></div>
         <div class="employee-profile-row"><span class="text-muted">Telepon</span><span>{{ $user->employee->phone ?: 'Belum diisi' }}</span></div>
         <div class="employee-profile-row"><span class="text-muted">Perusahaan</span><span class="text-end">{{ $user->employee->company ?: '-' }}</span></div>
-        <div class="employee-profile-row"><span class="text-muted">Jadwal dasar</span><span class="text-end">{{ optional($user->employee->workSchedule)->name ?: '-' }}</span></div>
         <div class="employee-profile-row"><span class="text-muted">Status akun</span><span class="badge bg-success align-self-center">Aktif</span></div>
     </div>
     <div class="border-top px-4 py-3"><div class="small fw-bold text-muted text-uppercase mb-2">Pengaturan Akun</div>

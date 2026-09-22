@@ -79,6 +79,7 @@
             border-color: #cbd5e1 !important;
             box-shadow: 0 10px 26px rgba(15, 23, 42, .075) !important;
         }
+        .employee-card--action.is-complete { border-color: #bbf7d0 !important; }
         .employee-card--action:hover:not(:disabled) {
             transform: translateY(-3px);
             color: var(--employee-ink);
@@ -188,7 +189,7 @@
     <div class="visually-hidden" id="attendanceProgress" role="status" aria-live="polite"></div>
 
     <section class="card employee-schedule-card" id="employeeScheduleTicker" aria-label="Informasi jadwal kerja"
-        data-schedule="{{ json_encode($scheduleTicker) }}">
+        data-schedule='@json($scheduleTicker)'>
         <div class="p-4">
             <h2 class="h6 fw-bold">{{ $scheduleTicker['scheduleName'] ?: 'Informasi Kerja' }}</h2>
             <p class="small text-muted mb-0">{{ $scheduleTicker['state'] === 'scheduled' ? 'Memuat jam dan rentang jadwal...' : 'Informasi jadwal akan ditampilkan di sini.' }}</p>
@@ -196,9 +197,10 @@
         </div>
     </section>
 
+    <noscript><div class="alert alert-warning mb-3">JavaScript diperlukan untuk mengambil GPS dan memproses absensi. Aktifkan JavaScript, lalu muat ulang halaman.</div></noscript>
     <div class="row g-3 employee-action-cards">
         <div class="col-md-6 col-xl-4">
-            <button type="button" id="checkInCard" aria-label="Absen Masuk" class="card stat-card employee-card employee-card--action employee-card--checkin h-100 {{ optional($todayAttendance)->check_in ? 'is-complete' : ((!$activeSchedule || $activeSchedule->status !== 'active' || $isDayOff || ($todayLeave && $todayLeave->status === 'approved')) ? 'is-locked' : 'is-active') }}"
+            <button type="button" id="checkInCard" aria-label="Absen Masuk" aria-describedby="checkInHint" class="card stat-card employee-card employee-card--action employee-card--checkin h-100 {{ optional($todayAttendance)->check_in ? 'is-complete' : ((!$activeSchedule || $activeSchedule->status !== 'active' || $isDayOff || ($todayLeave && $todayLeave->status === 'approved')) ? 'is-locked' : 'is-active') }}"
                 {{ !$activeSchedule || $activeSchedule->status !== 'active' || $isDayOff || optional($todayAttendance)->check_in || ($todayLeave && $todayLeave->status === 'approved') ? 'disabled' : '' }}>
                 <span class="card-body d-flex flex-column w-100">
                     <span class="employee-card__header">
@@ -213,7 +215,7 @@
                     </span>
                     <span class="employee-card__time">{{ optional($todayAttendance)->check_in ? $todayAttendance->check_in->format('H:i:s') : '--:--:--' }}</span>
                     <span class="employee-card__footer">
-                        <span class="employee-card__hint {{ optional($todayAttendance)->check_in ? 'employee-card__recorded' : '' }}" data-card-hint>{{ optional($todayAttendance)->check_in ? 'Tercatat' : (($todayLeave && $todayLeave->status === 'approved') ? 'Izin / sakit disetujui' : ($isDayOff ? 'Hari ini libur' : (!$activeSchedule || $activeSchedule->status !== 'active' ? 'Belum ada jadwal aktif' : 'Klik kartu untuk masuk'))) }}</span>
+                        <span class="employee-card__hint {{ optional($todayAttendance)->check_in ? 'employee-card__recorded' : '' }}" id="checkInHint" data-card-hint>{{ optional($todayAttendance)->check_in ? 'Tercatat' : (($todayLeave && $todayLeave->status === 'approved') ? 'Izin / sakit disetujui' : ($isDayOff ? 'Hari ini libur' : (!$activeSchedule || $activeSchedule->status !== 'active' ? 'Belum ada jadwal aktif' : 'Klik kartu untuk masuk'))) }}</span>
                         @if (!optional($todayAttendance)->check_in && $activeSchedule && $activeSchedule->status === 'active' && !$isDayOff && !($todayLeave && $todayLeave->status === 'approved'))<span class="employee-card__arrow" aria-hidden="true">→</span>@endif
                     </span>
                 </span>
@@ -221,7 +223,7 @@
         </div>
 
         <div class="col-md-6 col-xl-4">
-            <button type="button" id="checkOutCard" aria-label="Absen Pulang" aria-haspopup="dialog" aria-controls="checkoutModal" class="card stat-card employee-card employee-card--action employee-card--checkout h-100 {{ optional($todayAttendance)->check_out ? 'is-complete' : (($openAttendance && $checkoutAt) ? 'is-active' : 'is-locked') }}"
+            <button type="button" id="checkOutCard" aria-label="Absen Pulang" aria-describedby="checkOutHint" aria-haspopup="dialog" aria-controls="checkoutModal" class="card stat-card employee-card employee-card--action employee-card--checkout h-100 {{ optional($todayAttendance)->check_out ? 'is-complete' : (($openAttendance && $checkoutAt) ? 'is-active' : 'is-locked') }}"
                 {{ !$openAttendance || !$checkoutAt ? 'disabled' : '' }}>
                 <span class="card-body d-flex flex-column w-100">
                     <span class="employee-card__header">
@@ -236,7 +238,7 @@
                     </span>
                     <span class="employee-card__time">{{ optional($todayAttendance)->check_out ? $todayAttendance->check_out->format('H:i:s') : '--:--:--' }}</span>
                     <span class="employee-card__footer">
-                        <span class="employee-card__hint {{ optional($todayAttendance)->check_out ? 'employee-card__recorded' : '' }}" data-card-hint>{{ optional($todayAttendance)->check_out ? 'Tercatat' : (!$openAttendance ? 'Absen masuk terlebih dahulu' : (!$checkoutAt ? 'Hubungi admin untuk memeriksa jadwal' : 'Klik kartu untuk pulang')) }}</span>
+                        <span class="employee-card__hint {{ optional($todayAttendance)->check_out ? 'employee-card__recorded' : '' }}" id="checkOutHint" data-card-hint>{{ optional($todayAttendance)->check_out ? 'Tercatat' : (!$openAttendance ? 'Absen masuk terlebih dahulu' : (!$checkoutAt ? 'Hubungi admin untuk memeriksa jadwal' : 'Klik kartu untuk pulang')) }}</span>
                         @if (!optional($todayAttendance)->check_out && $openAttendance && $checkoutAt)<span class="employee-card__arrow" aria-hidden="true">→</span>@endif
                     </span>
                 </span>

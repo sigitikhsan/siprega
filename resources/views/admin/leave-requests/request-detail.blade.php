@@ -36,7 +36,7 @@
                 <h2 class="h5 fw-semibold mb-3">Alasan</h2>
                 <p class="mb-0" style="white-space: pre-line">{{ $leaveRequest->reason }}</p>
                 @if ($leaveRequest->attachment)
-                    <div class="mt-3"><a class="btn btn-sm btn-outline-primary" href="{{ route('leave-requests.attachment', $leaveRequest) }}">Unduh Lampiran</a></div>
+                    <div class="mt-3"><a class="btn btn-sm btn-outline-primary" href="{{ route('admin.leave-requests.attachment', $leaveRequest) }}">Unduh Lampiran</a></div>
                 @endif
             </section>
 

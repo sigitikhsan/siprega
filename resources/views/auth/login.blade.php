@@ -84,7 +84,7 @@
                     <div class="login-alert p-3 mb-4" role="alert">{{ $errors->first() }}</div>
                 @endif
 
-                <form method="POST" action="{{ url('/login') }}">
+                <form method="POST" action="{{ route('login') }}">
                     @csrf
                     <div class="mb-3">
                         <label class="form-label" for="username">Username</label>

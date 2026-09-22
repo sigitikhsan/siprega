@@ -87,7 +87,13 @@ class LeaveRequestController extends Controller
     public function download(Request $request, LeaveRequest $leaveRequest)
     {
         if ($request->user()->role !== 'admin') $this->authorizeOwner($request, $leaveRequest);
-        abort_unless($leaveRequest->attachment && Storage::disk('local')->exists($leaveRequest->attachment), 404);
+        $expectedPrefix = 'leave-attachments/'.$leaveRequest->employee_id.'/';
+        abort_unless(
+            $leaveRequest->attachment
+            && Str::startsWith($leaveRequest->attachment, $expectedPrefix)
+            && Storage::disk('local')->exists($leaveRequest->attachment),
+            404
+        );
         return Storage::disk('local')->download($leaveRequest->attachment);
     }
 

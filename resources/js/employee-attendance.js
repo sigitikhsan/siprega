@@ -24,6 +24,7 @@
 
     let busy = false;
     let modal;
+    let modalTimer;
     const cards = [checkInCard, checkOutCard];
     const initialDisabled = cards.map(card => card.disabled);
     const dismissButtons = Array.from(modalElement.querySelectorAll('[data-bs-dismiss="modal"]'));
@@ -149,15 +150,20 @@
         modal.show();
     });
     modalElement.addEventListener('shown.bs.modal', () => {
+        clearInterval(modalTimer);
+        modalTimer = setInterval(() => {
+            if (!busy) updateCheckoutModal();
+        }, 1000);
         (reason.required ? reason : confirmButton).focus();
     });
     modalElement.addEventListener('hide.bs.modal', event => {
         if (busy) event.preventDefault();
     });
-    modalElement.addEventListener('hidden.bs.modal', () => checkOutCard.focus());
-    setInterval(() => {
-        if (!busy && modalElement.classList.contains('show')) updateCheckoutModal();
-    }, 1000);
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        clearInterval(modalTimer);
+        modalTimer = null;
+        checkOutCard.focus();
+    });
     reason.addEventListener('input', () => reason.setCustomValidity(''));
     checkoutForm.addEventListener('submit', event => {
         event.preventDefault();

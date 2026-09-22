@@ -162,15 +162,7 @@ class AttendanceController extends Controller
                 });
             })
             ->when($filters['shift_type'] ?? null, function ($query, $type) {
-                $query->where(function ($query) use ($type) {
-                    $query->whereHas('workSchedule', function ($query) use ($type) {
-                        $query->where('shift_type', $type);
-                    })->orWhere(function ($query) use ($type) {
-                        $query->whereNull('work_schedule_id')->whereHas('employee.workSchedule', function ($query) use ($type) {
-                            $query->where('shift_type', $type);
-                        });
-                    });
-                });
+                $query->forShiftType($type);
             })
             ->when($filters['check_in_status'] ?? null, function ($query, $status) {
                 $query->where('check_in_status', $status);
@@ -182,7 +174,8 @@ class AttendanceController extends Controller
                 $query->whereNull('check_out');
             })
             ->orderByDesc('attendance_date')
-            ->orderByDesc('check_in');
+            ->orderByDesc('check_in')
+            ->orderByDesc('id');
     }
 
     public function show(Attendance $attendance)

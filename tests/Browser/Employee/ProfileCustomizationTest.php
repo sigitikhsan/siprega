@@ -14,7 +14,7 @@ class ProfileCustomizationTest extends DuskTestCase
 {
     use DatabaseMigrations;
 
-    public function test_profile_is_responsive_and_stored_html_is_not_executed()
+    public function test_profile_is_responsive_and_avatar_form_is_available()
     {
         $schedule = WorkSchedule::create([
             'name' => 'Jadwal Profil Dusk', 'shift_type' => 'fixed',
@@ -28,8 +28,6 @@ class ProfileCustomizationTest extends DuskTestCase
         Employee::create([
             'user_id' => $user->id, 'work_schedule_id' => $schedule->id,
             'employee_number' => 'PROFILE-DUSK', 'position' => 'Petugas',
-            'profile_accent' => 'red;xxx',
-            'bio' => '<script>window.profileXssExecuted = true</script>',
         ]);
 
         $this->browse(function (Browser $browser) {
@@ -42,14 +40,13 @@ class ProfileCustomizationTest extends DuskTestCase
             foreach ([390, 768, 1440] as $width) {
                 $browser->resize($width, 900)->visit('/profile');
                 $this->assertTrue((bool) $browser->script('return document.documentElement.scrollWidth <= window.innerWidth;')[0]);
-                $this->assertSame('undefined', $browser->script('return typeof window.profileXssExecuted;')[0]);
             }
 
             $browser->visit('/profile/edit')
                 ->assertSee('Edit dan Kustomisasi Profil')
                 ->assertPresent('input[name="avatar"]')
-                ->assertPresent('textarea[name="bio"]')
-                ->assertPresent('input[name="profile_accent"]');
+                ->assertMissing('textarea[name="bio"]')
+                ->assertMissing('input[name="profile_accent"]');
         });
     }
 }

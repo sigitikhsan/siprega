@@ -56,6 +56,7 @@ class AttendanceController extends Controller
                     ->whereNull('check_out')
                     ->lockForUpdate()
                     ->latest('check_in')
+                    ->latest('id')
                     ->first();
                 if ($openAttendance) {
                     throw ValidationException::withMessages([
@@ -128,7 +129,7 @@ class AttendanceController extends Controller
         [$location, $distance] = $this->resolveLocation($position);
         $now = now();
         $attendance = Attendance::with('workSchedule')->where('employee_id', $employee->id)
-            ->whereNotNull('check_in')->whereNull('check_out')->latest('check_in')->first();
+            ->whereNotNull('check_in')->whereNull('check_out')->latest('check_in')->latest('id')->first();
 
         if (!$attendance || !$attendance->check_in) return back()->with('error', 'Anda belum melakukan absen masuk hari ini.');
         $schedule = $attendance->workSchedule ?: $employee->workSchedule;
@@ -260,6 +261,7 @@ class AttendanceController extends Controller
         $previous = Attendance::where('employee_id', $employeeId)
             ->whereNotNull('check_in')
             ->latest('check_in')
+            ->latest('id')
             ->first();
 
         if (!$previous) return [false, null];

@@ -22,7 +22,7 @@ class ProfileController extends Controller
 {
     public function show(Request $request)
     {
-        $user = $request->user()->load('employee.workSchedule');
+        $user = $request->user()->load('employee');
         return view('employee.profile.profile-overview', compact('user'));
     }
 
@@ -41,8 +41,6 @@ class ProfileController extends Controller
             'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users')->ignore($user->id)],
             'email' => ['nullable', 'string', 'not_regex:/[\r\n]/', 'email', 'max:150', Rule::unique('users')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+()\-\s]+$/'],
-            'bio' => ['nullable', 'string', 'max:240', 'not_regex:/[<>]/'],
-            'profile_accent' => ['nullable', Rule::in(['#2563eb', '#0891b2', '#059669', '#7c3aed', '#e11d48', '#d97706'])],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072', 'dimensions:max_width=3000,max_height=3000'],
             'remove_avatar' => ['nullable', 'boolean'],
         ]);
@@ -60,10 +58,6 @@ class ProfileController extends Controller
                 ]);
                 $employee->update([
                     'phone' => isset($validated['phone']) ? trim($validated['phone']) : null,
-                    'bio' => array_key_exists('bio', $validated)
-                        ? (!empty($validated['bio']) ? trim($validated['bio']) : null)
-                        : $employee->bio,
-                    'profile_accent' => $validated['profile_accent'] ?? ($employee->profile_accent ?: '#2563eb'),
                     'avatar_path' => $newAvatar ?: ($removeAvatar ? null : $employee->avatar_path),
                 ]);
             });

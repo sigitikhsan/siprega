@@ -81,6 +81,23 @@ class LoginSecurityTest extends TestCase
             ->assertSessionHas('retry_after');
     }
 
+    public function test_successful_login_clears_account_and_ip_limiters()
+    {
+        $admin = $this->user('admin');
+        $accountKey = 'login:account:'.strtolower($admin->username);
+        $ipKey = 'login:ip:127.0.0.1';
+        RateLimiter::hit($accountKey, 300);
+        RateLimiter::hit($ipKey, 300);
+
+        $this->post('/login', [
+            'username' => $admin->username,
+            'password' => 'password123',
+        ])->assertRedirect(route('admin.dashboard'));
+
+        $this->assertSame(0, RateLimiter::attempts($accountKey));
+        $this->assertSame(0, RateLimiter::attempts($ipKey));
+    }
+
     private function user(string $role): User
     {
         return User::create([

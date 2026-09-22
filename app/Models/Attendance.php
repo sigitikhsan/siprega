@@ -53,7 +53,6 @@ class Attendance extends Model
         'check_out_captured_at' => 'datetime',
         'check_in_location_suspicious' => 'boolean',
         'check_out_location_suspicious' => 'boolean',
-        'is_within_radius' => 'boolean',
     ];
 
     /**
@@ -88,5 +87,23 @@ class Attendance extends Model
     public function corrections()
     {
         return $this->hasMany(AttendanceCorrection::class);
+    }
+
+    /**
+     * Membatasi absensi berdasarkan jenis jadwal yang tersimpan pada absensi,
+     * dengan fallback ke jadwal dasar pegawai untuk data lama.
+     */
+    public function scopeForShiftType($query, string $type)
+    {
+        return $query->where(function ($query) use ($type) {
+            $query->whereHas('workSchedule', function ($scheduleQuery) use ($type) {
+                $scheduleQuery->where('shift_type', $type);
+            })->orWhere(function ($legacyQuery) use ($type) {
+                $legacyQuery->whereNull('work_schedule_id')
+                    ->whereHas('employee.workSchedule', function ($scheduleQuery) use ($type) {
+                        $scheduleQuery->where('shift_type', $type);
+                    });
+            });
+        });
     }
 }

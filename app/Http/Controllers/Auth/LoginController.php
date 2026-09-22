@@ -61,6 +61,7 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $remember)) {
             RateLimiter::clear($accountKey);
+            RateLimiter::clear($ipKey);
             $request->session()->regenerate();
             $request->session()->forget('url.intended');
 

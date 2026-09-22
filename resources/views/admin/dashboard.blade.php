@@ -34,7 +34,7 @@
         .activity-row + .activity-row { border-top: 1px solid #e2e8f0; }
         .attendance-chart-wrap { position: relative; height: 230px; }
         .chart-mode-button { width: 30px; height: 30px; display: inline-grid; place-items: center; padding: 0; color: #6b6964; background: transparent; border: 1px solid transparent; border-radius: .5rem; }
-        .chart-mode-button:hover, .chart-mode-button:focus-visible { color: #047857; background: #d1fae5; border-color: #a7f3d0; outline: none; }
+        .chart-mode-button:hover, .chart-mode-button:focus-visible { color: #047857; background: #d1fae5; border-color: #a7f3d0; }
         .chart-mode-button.active { color: #fff; background: #10b981; border-color: #10b981; }
         .chart-mode-button svg { width: 15px; height: 15px; }
         .chart-total-pill { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: .65rem; }
@@ -123,6 +123,7 @@
                 </div>
                 <div class="attendance-chart-wrap">
                     <canvas id="attendanceChart" role="img" aria-label="Grafik absensi tujuh hari terakhir, membandingkan jumlah tepat waktu dan terlambat"></canvas>
+                    <p class="small text-muted text-center py-5 mb-0" id="attendanceChartFallback" role="status" hidden>Grafik belum dapat ditampilkan. Data absensi tetap tersedia melalui tautan di bawah.</p>
                 </div>
                 <div class="text-end mt-3"><a class="small dashboard-action-link" href="{{ route('admin.attendances.index', ['date_from' => $attendanceChart->first()['date'], 'date_to' => $attendanceChart->last()['date']]) }}">Lihat data periode ini →</a></div>
             </section>
@@ -167,6 +168,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const canvas = document.getElementById('attendanceChart');
+            const fallback = document.getElementById('attendanceChartFallback');
             const buttons = Array.from(document.querySelectorAll('[data-chart-type]'));
             const chartAvailable = Boolean(window.Chart && canvas);
             let labels = @json($attendanceChart->pluck('label')->values());
@@ -175,6 +177,12 @@
             let totals = @json($chartTotals);
             const colors = { present: '#06b6d4', late: '#f59e0b' };
             let chart;
+
+            const showChartFallback = function () {
+                if (canvas) canvas.hidden = true;
+                if (fallback) fallback.hidden = false;
+                buttons.forEach(function (button) { button.disabled = true; });
+            };
 
             const dailyDatasets = function (type) {
                 const fill = type === 'line';
@@ -190,27 +198,32 @@
                 if (chart) chart.destroy();
 
                 const isDoughnut = type === 'doughnut';
-                chart = new window.Chart(canvas, {
-                    type: type,
-                    data: isDoughnut ? {
-                        labels: ['Tepat waktu', 'Terlambat'],
-                        datasets: [{ data: [totals.present, totals.late], backgroundColor: [colors.present, colors.late], borderColor: '#fffefa', borderWidth: 3, hoverOffset: 5 }]
-                    } : { labels: labels, datasets: dailyDatasets(type) },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: isDoughnut ? '68%' : undefined,
-                        animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 350 },
-                        plugins: {
-                            legend: { display: true, position: isDoughnut ? 'right' : 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 14 } },
-                            tooltip: { mode: isDoughnut ? 'nearest' : 'index', intersect: false }
-                        },
-                        scales: isDoughnut ? {} : {
-                            x: { grid: { display: false }, stacked: type === 'bar' },
-                            y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 }, grid: { color: '#eeeae3' }, stacked: type === 'bar' }
+                try {
+                    chart = new window.Chart(canvas, {
+                        type: type,
+                        data: isDoughnut ? {
+                            labels: ['Tepat waktu', 'Terlambat'],
+                            datasets: [{ data: [totals.present, totals.late], backgroundColor: [colors.present, colors.late], borderColor: '#fffefa', borderWidth: 3, hoverOffset: 5 }]
+                        } : { labels: labels, datasets: dailyDatasets(type) },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: isDoughnut ? '68%' : undefined,
+                            animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 350 },
+                            plugins: {
+                                legend: { display: true, position: isDoughnut ? 'right' : 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 14 } },
+                                tooltip: { mode: isDoughnut ? 'nearest' : 'index', intersect: false }
+                            },
+                            scales: isDoughnut ? {} : {
+                                x: { grid: { display: false }, stacked: type === 'bar' },
+                                y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 }, grid: { color: '#eeeae3' }, stacked: type === 'bar' }
+                            }
                         }
-                    }
-                });
+                    });
+                } catch (error) {
+                    showChartFallback();
+                    return;
+                }
 
                 buttons.forEach(function (button) {
                     const active = button.dataset.chartType === type;
@@ -228,6 +241,7 @@
             let initialType = 'bar';
             try { initialType = localStorage.getItem('adminAttendanceChartType') || 'bar'; } catch (error) {}
             if (chartAvailable) renderChart(initialType);
+            else showChartFallback();
 
         });
     </script>

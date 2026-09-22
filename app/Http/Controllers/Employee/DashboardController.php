@@ -21,14 +21,14 @@ class DashboardController extends Controller
         $serverNow = now();
         list($activeSchedule, $activeAssignment, $shiftDate) = $resolver->forCurrentMoment($employee, $serverNow);
         $openAttendance = $employee->attendances()->with(['location', 'workSchedule'])
-            ->whereNotNull('check_in')->whereNull('check_out')->latest('check_in')->first();
+            ->whereNotNull('check_in')->whereNull('check_out')->latest('check_in')->latest('id')->first();
         $todayAttendance = $openAttendance ?: $employee->attendances()->with(['location', 'workSchedule'])
             ->where('attendance_date', $serverNow->toDateString())->first();
         if ($openAttendance && $openAttendance->workSchedule) {
             $activeSchedule = $openAttendance->workSchedule;
         }
         $recentAttendances = $employee->attendances()->with(['location', 'workSchedule'])
-            ->latest('attendance_date')->limit(5)->get();
+            ->latest('attendance_date')->latest('id')->limit(5)->get();
         $todayLeave = $employee->leaveRequests()->whereIn('status', ['pending', 'approved'])
             ->overlappingDates($serverNow)->latest()->first();
 

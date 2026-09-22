@@ -22,8 +22,6 @@ class Employee extends Model
         'employee_number',
         'phone',
         'avatar_path',
-        'profile_accent',
-        'bio',
         'position',
         'company',
         'join_date',

@@ -31,7 +31,7 @@ class EmployeeProfileTest extends TestCase
         $this->assertDatabaseHas('employees', ['id' => $employee->id, 'employee_number' => $originalNumber, 'position' => 'Security', 'phone' => '081234567890']);
     }
 
-    public function test_employee_can_customize_profile_and_avatar_is_reencoded_as_small_webp()
+    public function test_employee_can_update_profile_and_avatar_is_reencoded_as_small_webp()
     {
         Storage::fake('local');
         [$user, $employee] = $this->employeeProfile();
@@ -41,8 +41,6 @@ class EmployeeProfileTest extends TestCase
             'username' => $user->username,
             'email' => 'kustom@example.test',
             'phone' => '+62 812-3456-7890',
-            'bio' => 'Petugas operasional dan pelayanan publik.',
-            'profile_accent' => '#059669',
             'avatar' => UploadedFile::fake()->image('foto-besar.png', 1200, 800),
         ])->assertRedirect(route('employee.profile.show'));
 
@@ -52,14 +50,11 @@ class EmployeeProfileTest extends TestCase
         $this->assertSame([320, 320], [$image[0], $image[1]]);
         $this->assertSame('image/webp', $image['mime']);
         $this->assertLessThan(150000, Storage::disk('local')->size($employee->avatar_path));
-        $this->assertSame('#059669', $employee->profile_accent);
-        $this->assertSame('Petugas operasional dan pelayanan publik.', $employee->bio);
-
         $this->actingAs($user)->get(route('employee.profile.avatar'))
             ->assertOk()->assertHeader('Content-Type', 'image/webp');
     }
 
-    public function test_profile_rejects_html_script_invalid_color_and_fake_image()
+    public function test_profile_rejects_html_in_name_and_fake_image()
     {
         Storage::fake('local');
         [$user, $employee] = $this->employeeProfile();
@@ -70,11 +65,9 @@ class EmployeeProfileTest extends TestCase
             'username' => $user->username,
             'email' => 'aman@example.test',
             'phone' => '081234567890',
-            'bio' => '<img src=x onerror=alert(1)>',
-            'profile_accent' => 'url(javascript:alert(1))',
             'avatar' => $fakeImage,
         ])->assertRedirect(route('employee.profile.edit'))
-            ->assertSessionHasErrors(['name', 'bio', 'profile_accent', 'avatar']);
+            ->assertSessionHasErrors(['name', 'avatar']);
 
         $this->assertSame('Profile Employee', $user->fresh()->name);
         $this->assertNull($employee->fresh()->avatar_path);

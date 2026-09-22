@@ -54,7 +54,8 @@ function fixture(options = {}) {
             return { ok: !options.challengeError, json: async () => ({ token: 'a'.repeat(64) }) };
         },
         performance: { now: () => elapsed },
-        setInterval: fn => intervals.push(fn), setTimeout: () => 1, clearTimeout() {},
+        setInterval: fn => { intervals.push(fn); return intervals.length; },
+        clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
         AbortController, Intl, Date,
         HTMLFormElement: { prototype: { submit() { submitted.push(this.id); } } }
     });
@@ -116,6 +117,7 @@ test('night shift at 23:00 still requires a reason until 07:00 the next day', ()
     const f = fixture({ now: '2026-09-03T23:00:00+07:00', checkoutAt: '2026-09-04T07:00:00+07:00' });
     f.element('checkOutCard').fire('click');
     assert.equal(f.element('earlyCheckoutReason').required, true);
+    f.element('checkoutModal').fire('shown.bs.modal');
     f.advance(8 * 60 * 60 * 1000);
     assert.equal(f.element('earlyCheckoutReason').required, false);
     assert.equal(f.element('confirmCheckout').textContent, 'Ya, Pulang');

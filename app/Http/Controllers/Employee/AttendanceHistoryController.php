@@ -30,7 +30,7 @@ class AttendanceHistoryController extends Controller
             ->when($filters['status'] ?? null, function ($query, $status) { $query->where('check_in_status', $status); })
             ->when(($filters['completion'] ?? null) === 'complete', function ($query) { $query->whereNotNull('check_out'); })
             ->when(($filters['completion'] ?? null) === 'incomplete', function ($query) { $query->whereNull('check_out'); })
-            ->orderByDesc('attendance_date')->orderByDesc('check_in')->paginate(12)->appends($filters);
+            ->orderByDesc('attendance_date')->orderByDesc('check_in')->orderByDesc('id')->paginate(12)->appends($filters);
 
         return view('employee.attendances.attendance-history', compact('attendances', 'filters'));
     }

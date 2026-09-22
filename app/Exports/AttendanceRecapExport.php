@@ -31,24 +31,12 @@ class AttendanceRecapExport implements WithMultipleSheets
             new AttendanceRecapSheet(clone $this->query, 'Semua Absensi'),
             new AttendanceRecapSheet((clone $this->query)->where('check_in_status', 'present'), 'Tepat Waktu'),
             new AttendanceRecapSheet((clone $this->query)->where('check_in_status', 'late'), 'Terlambat'),
-            new AttendanceRecapSheet($this->byShiftType('day'), 'Shift Siang'),
-            new AttendanceRecapSheet($this->byShiftType('night'), 'Shift Malam'),
-            new AttendanceRecapSheet($this->byShiftType('fixed'), 'Jadwal Tetap'),
+            new AttendanceRecapSheet((clone $this->query)->forShiftType('day'), 'Shift Siang'),
+            new AttendanceRecapSheet((clone $this->query)->forShiftType('night'), 'Shift Malam'),
+            new AttendanceRecapSheet((clone $this->query)->forShiftType('fixed'), 'Jadwal Tetap'),
             new AttendanceRecapSheet((clone $this->query)->whereNotNull('check_out'), 'Sudah Pulang'),
             new AttendanceRecapSheet((clone $this->query)->whereNull('check_out'), 'Belum Pulang'),
         ];
     }
 
-    private function byShiftType(string $type): Builder
-    {
-        return (clone $this->query)->where(function ($query) use ($type) {
-            $query->whereHas('workSchedule', function ($scheduleQuery) use ($type) {
-                $scheduleQuery->where('shift_type', $type);
-            })->orWhere(function ($legacyQuery) use ($type) {
-                $legacyQuery->whereNull('work_schedule_id')->whereHas('employee.workSchedule', function ($scheduleQuery) use ($type) {
-                    $scheduleQuery->where('shift_type', $type);
-                });
-            });
-        });
-    }
 }

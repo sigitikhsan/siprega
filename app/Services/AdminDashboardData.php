@@ -42,7 +42,7 @@ class AdminDashboardData
     public function recentAttendances()
     {
         return Cache::remember(self::ATTENDANCES_KEY, 15, function () {
-            return Attendance::with(['employee.user', 'location'])->latest('check_in')->limit(4)->get();
+            return Attendance::with(['employee.user', 'location'])->latest('check_in')->latest('id')->limit(4)->get();
         });
     }
 
