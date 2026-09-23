@@ -78,7 +78,13 @@ class ProfileController extends Controller
     public function avatar(Request $request)
     {
         $user = $request->user();
-        abort_unless($user->avatar_path && Storage::disk('local')->exists($user->avatar_path), 404);
+        $expectedPrefix = 'admin-profile-avatars/'.$user->id.'/';
+        abort_unless(
+            $user->avatar_path
+            && Str::startsWith($user->avatar_path, $expectedPrefix)
+            && Storage::disk('local')->exists($user->avatar_path),
+            404
+        );
 
         return response(Storage::disk('local')->get($user->avatar_path), 200, [
             'Content-Type' => 'image/webp',

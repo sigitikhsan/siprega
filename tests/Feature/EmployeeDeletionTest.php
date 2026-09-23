@@ -19,6 +19,7 @@ class EmployeeDeletionTest extends TestCase
     {
         $admin = $this->user('admin');
         $employeeUser = $this->user('employee');
+        $employeeUser->forceFill(['remember_token' => 'remember-before-delete'])->save();
         $schedule = WorkSchedule::create(['name' => 'Delete Test '.uniqid(), 'shift_type' => 'fixed', 'check_in_start' => '08:00', 'check_in_end' => '08:30', 'late_tolerance' => 0, 'check_out_start' => '17:00', 'status' => 'active']);
         $employee = Employee::create(['user_id' => $employeeUser->id, 'work_schedule_id' => $schedule->id, 'employee_number' => 'DEL-'.uniqid()]);
         $location = Location::create(['name' => 'Test '.uniqid(), 'latitude' => -6.2, 'longitude' => 106.8, 'radius' => 100, 'accuracy_limit' => 50, 'status' => 'active']);
@@ -27,6 +28,7 @@ class EmployeeDeletionTest extends TestCase
         $this->actingAs($admin)->delete(route('admin.employees.destroy', $employee))->assertRedirect(route('admin.employees.index'));
 
         $this->assertDatabaseHas('users', ['id' => $employeeUser->id, 'status' => 'inactive']);
+        $this->assertNotSame('remember-before-delete', $employeeUser->fresh()->remember_token);
         $this->assertDatabaseHas('employees', ['id' => $employee->id]);
         $this->assertDatabaseHas('attendances', ['id' => $attendance->id]);
     }

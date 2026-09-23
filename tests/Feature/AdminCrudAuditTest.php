@@ -77,6 +77,7 @@ class AdminCrudAuditTest extends TestCase
         $fixed = $this->schedule('Jadwal Pegawai');
         $night = $this->schedule('Shift Malam', 'night');
         [$employeeUser, $employee] = $this->employee($fixed);
+        $employeeUser->forceFill(['remember_token' => 'remember-before-inactive'])->save();
         EmployeeShiftAssignment::create([
             'employee_id' => $employee->id,
             'work_schedule_id' => $night->id,
@@ -92,6 +93,7 @@ class AdminCrudAuditTest extends TestCase
         ])->assertSessionHas('success');
 
         $this->assertDatabaseHas('users', ['id' => $employeeUser->id, 'status' => 'inactive']);
+        $this->assertNotSame('remember-before-inactive', $employeeUser->fresh()->remember_token);
         $this->assertDatabaseMissing('employee_shift_assignments', ['employee_id' => $employee->id]);
     }
 

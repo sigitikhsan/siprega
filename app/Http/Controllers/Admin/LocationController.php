@@ -24,7 +24,8 @@ class LocationController extends Controller
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
             })
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->paginate(10)
             ->appends(['search' => $search]);
 

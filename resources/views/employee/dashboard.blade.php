@@ -9,6 +9,10 @@
 @section('page-subtitle', 'Aktivitas absensi Anda hari ini')
 @section('body-class', 'employee-dashboard-page')
 
+@push('styles')
+    <link href="{{ mix('css/employee-schedule.css') }}" rel="stylesheet">
+@endpush
+
 @section('content')
 <div class="employee-dashboard" id="employeeDashboard"
      data-server-now="{{ $scheduleTicker['serverNow'] }}"
@@ -34,7 +38,6 @@
             background: #eff6ff;
             border: 1px solid #dbeafe;
             border-radius: 1rem;
-            box-shadow: 0 10px 28px rgba(30, 64, 175, .055);
         }
         .employee-hero__eyebrow,
         .employee-mode-badge {
@@ -109,15 +112,20 @@
         .employee-card__recorded::before { width: 17px; height: 17px; display: grid; place-items: center; color: #fff; background: #16a34a; border-radius: 50%; content: '✓'; font-size: .65rem; font-weight: 800; }
         .employee-card__leave-copy { max-width: 230px; margin: .15rem 0 1rem; color: #172033; font-size: 1.15rem; font-weight: 600; line-height: 1.35; }
         #checkoutModal .modal-dialog { max-width: 520px; }
-        #checkoutModal .modal-content { border: 1px solid #d1fae5; border-top: 3px solid #10b981; border-radius: 1rem; }
-        #checkoutModal .modal-title { font-size: 1.1rem; font-weight: 700; }
-        #checkoutModal .modal-footer { gap: .5rem; }
-        .checkout-modal__icon { width: 44px; height: 44px; display: grid; flex: 0 0 44px; place-items: center; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: .8rem; }
-        .checkout-modal__eyebrow { margin-bottom: .15rem; color: #059669; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-        .checkout-modal__description { margin: 0; padding: .9rem 1rem; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: .75rem; }
-        #checkoutModal #earlyReasonGroup { margin-top: 1.1rem; }
-        #checkoutModal #confirmCheckout { background: #059669; border-color: #059669; }
-        #checkoutModal #confirmCheckout:hover, #checkoutModal #confirmCheckout:focus-visible { background: #047857; border-color: #047857; box-shadow: 0 7px 18px rgba(5,150,105,.2); }
+        #checkoutModal .modal-content { border: 1px solid #dbe3ee; border-radius: 1rem; }
+        #checkoutModal .modal-header { align-items: flex-start; padding: 1.35rem 1.4rem 1.1rem; background: #fff; }
+        #checkoutModal .modal-title { color: #172033; font-size: 1.15rem; font-weight: 700; line-height: 1.35; }
+        #checkoutModal .modal-body { padding: 1.25rem 1.4rem 1.4rem; }
+        #checkoutModal .modal-footer { justify-content: space-between; gap: .75rem; padding: 1rem 1.4rem; background: #f8fafc; }
+        .checkout-modal__icon { width: 42px; height: 42px; display: grid; flex: 0 0 42px; place-items: center; color: #1764dc; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: .7rem; }
+        .checkout-modal__description { margin: 0; color: #475569; line-height: 1.6; }
+        #checkoutModal.is-early .checkout-modal__icon { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+        #checkoutModal.is-early .checkout-modal__description { padding: .85rem 1rem; color: #78350f; background: #fffbeb; border: 1px solid #fde68a; border-radius: .65rem; }
+        #checkoutModal #earlyReasonGroup { margin-top: 1.15rem; }
+        #checkoutModal #earlyCheckoutReason { min-height: 116px; resize: vertical; }
+        #checkoutModal #confirmCheckout { background: #1764dc; border-color: #1764dc; }
+        #checkoutModal #confirmCheckout:hover, #checkoutModal #confirmCheckout:focus-visible { background: #1259c3; border-color: #1259c3; box-shadow: 0 0 0 .2rem rgba(23,100,220,.14); }
+        #checkoutModal .btn-close:focus-visible { box-shadow: 0 0 0 .2rem rgba(23,100,220,.14); }
         .employee-card--leave { color: var(--employee-ink); }
         a.employee-card--leave:hover { color: var(--employee-ink); }
         .employee-card--leave .text-muted { color: var(--employee-muted) !important; }
@@ -126,7 +134,6 @@
             background: #fff;
             border-color: var(--employee-line) !important;
             border-radius: 1rem !important;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, .04) !important;
         }
         .employee-history .card-body { min-height: 0 !important; }
         .employee-history .table { --bs-table-bg: transparent; }
@@ -146,6 +153,12 @@
             .employee-card--action:hover:not(:disabled) .employee-card__arrow,
             .employee-card--action:active:not(:disabled) .employee-card__arrow { transform: none; }
             .employee-history .card-body { padding: 1.1rem !important; }
+        }
+        @media (max-width: 575.98px) {
+            #checkoutModal .modal-dialog { margin: .75rem; }
+            #checkoutModal .modal-header, #checkoutModal .modal-body { padding-inline: 1.1rem; }
+            #checkoutModal .modal-footer { display: grid; grid-template-columns: 1fr; padding-inline: 1.1rem; }
+            #checkoutModal .modal-footer .btn { width: 100%; }
         }
         @media (prefers-reduced-motion: reduce) {
             .employee-card, .employee-history tbody tr { transition: none !important; }
@@ -263,15 +276,14 @@
     </form>
 
     <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalTitle" aria-describedby="checkoutModalDescription" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <form method="POST" action="{{ route('employee.attendance.check-out') }}" id="checkOutForm" class="modal-content">
                 @csrf @method('PATCH')
                 <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy"><input type="hidden" name="captured_at"><input type="hidden" name="attendance_nonce">
-                <div class="modal-header align-items-center">
+                <div class="modal-header">
                     <div class="d-flex align-items-center gap-3">
                         <span class="checkout-modal__icon"><x-icon name="logout" size="22" /></span>
                         <div>
-                            <div class="checkout-modal__eyebrow">Presensi pulang</div>
                             <h2 class="modal-title mb-0" id="checkoutModalTitle">Konfirmasi Absen Pulang</h2>
                         </div>
                     </div>
@@ -282,8 +294,12 @@
                     <div id="earlyReasonGroup" hidden>
                         <label for="earlyCheckoutReason" class="form-label">Alasan pulang lebih awal <span class="text-danger">*</span></label>
                         <textarea class="form-control" id="earlyCheckoutReason" name="early_checkout_reason" rows="3" maxlength="1000" placeholder="Tuliskan alasan Anda..." disabled>{{ old('early_checkout_reason') }}</textarea>
+                        <div class="form-text d-flex justify-content-between gap-3">
+                            <span>Jelaskan alasan secara singkat dan spesifik.</span>
+                            <span id="earlyReasonCounter" aria-live="polite">0/1000</span>
+                        </div>
                     </div>
-                    <div id="checkoutError" class="alert alert-danger mt-3 mb-0" role="alert" hidden></div>
+                    <div id="checkoutError" class="alert alert-danger mt-3 mb-0" role="alert" tabindex="-1" hidden></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>

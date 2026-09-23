@@ -39,7 +39,8 @@ class EmployeeController extends Controller
                         });
                 });
             })
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->paginate(10)
             ->appends([
                 'search' => $search,
@@ -93,6 +94,8 @@ class EmployeeController extends Controller
         $validated = $this->validateEmployee($request, $employee);
 
         DB::transaction(function () use ($validated, $employee) {
+            $lockedEmployee = Employee::with('user')->whereKey($employee->id)
+                ->lockForUpdate()->firstOrFail();
             $userData = [
                 'name' => $validated['name'],
                 'email' => $validated['email'] ?? null,
@@ -104,12 +107,16 @@ class EmployeeController extends Controller
                 $userData['password'] = Hash::make($validated['password']);
                 $userData['remember_token'] = Str::random(60);
             }
+            if ($validated['status'] === 'inactive') {
+                // Revoke persistent logins even when the password is unchanged.
+                $userData['remember_token'] = Str::random(60);
+            }
 
-            $employee->user->forceFill($userData)->save();
-            $employee->update($this->employeeData($validated));
+            $lockedEmployee->user->forceFill($userData)->save();
+            $lockedEmployee->update($this->employeeData($validated));
 
             if ($validated['status'] === 'inactive') {
-                $employee->shiftAssignments()->whereDate('shift_date', '>=', today())->delete();
+                $lockedEmployee->shiftAssignments()->whereDate('shift_date', '>=', today())->delete();
             }
         });
         app(AdminDashboardData::class)->forgetAll();
@@ -120,23 +127,36 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $employee)
     {
-        $hasHistory = $employee->attendances()->exists() || $employee->leaveRequests()->exists();
+        $avatarPath = null;
+        $hasHistory = DB::transaction(function () use ($employee, &$avatarPath) {
+            $lockedEmployee = Employee::with('user')->whereKey($employee->id)
+                ->lockForUpdate()->firstOrFail();
+            $hasHistory = $lockedEmployee->attendances()->exists()
+                || $lockedEmployee->leaveRequests()->exists();
+
+            if ($hasHistory) {
+                $lockedEmployee->user->forceFill([
+                    'status' => 'inactive',
+                    'remember_token' => Str::random(60),
+                ])->save();
+                $lockedEmployee->shiftAssignments()->whereDate('shift_date', '>=', today())->delete();
+
+                return true;
+            }
+
+            $avatarPath = $lockedEmployee->avatar_path;
+            $lockedEmployee->user->delete();
+
+            return false;
+        });
 
         if ($hasHistory) {
-            DB::transaction(function () use ($employee) {
-                $employee->user->update(['status' => 'inactive']);
-                $employee->shiftAssignments()->whereDate('shift_date', '>=', today())->delete();
-            });
             app(AdminDashboardData::class)->forgetAll();
 
             return redirect()->route('admin.employees.index')
                 ->with('success', 'Pegawai tidak dihapus karena memiliki riwayat absensi/izin. Akun berhasil dinonaktifkan dan penugasan shift mendatang dibatalkan.');
         }
 
-        $avatarPath = $employee->avatar_path;
-        DB::transaction(function () use ($employee) {
-            $employee->user->delete();
-        });
         app(ProfileAvatarService::class)->delete($avatarPath);
         app(AdminDashboardData::class)->forgetAll();
 
@@ -150,7 +170,7 @@ class EmployeeController extends Controller
         $employeeId = $employee ? $employee->id : null;
 
         return $request->validate([
-            'name' => ['required', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:100', 'not_regex:/[<>]/'],
             'email' => ['nullable', 'string', 'not_regex:/[\r\n]/', 'email', 'max:150', Rule::unique('users')->ignore($userId)],
             'username' => ['required', 'string', 'max:50', Rule::unique('users')->ignore($userId)],
             'password' => [$employee ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],

@@ -15,6 +15,7 @@
     const checkoutForm = get('checkOutForm');
     const modalElement = get('checkoutModal');
     const reason = get('earlyCheckoutReason');
+    const reasonCounter = get('earlyReasonCounter');
     const confirmButton = get('confirmCheckout');
     const progress = get('attendanceProgress');
     const serverTime = Date.parse(dashboard.dataset.serverNow);
@@ -25,12 +26,16 @@
     let busy = false;
     let modal;
     let modalTimer;
+    let modalEarlyState = null;
     const cards = [checkInCard, checkOutCard];
     const initialDisabled = cards.map(card => card.disabled);
     const dismissButtons = Array.from(modalElement.querySelectorAll('[data-bs-dismiss="modal"]'));
 
     function updateCheckoutModal() {
         const early = now() < checkoutAt;
+        if (modalEarlyState === early) return;
+        modalEarlyState = early;
+        modalElement.classList.toggle('is-early', early);
         get('earlyReasonGroup').hidden = !early;
         reason.disabled = !early;
         reason.required = early;
@@ -43,10 +48,15 @@
         confirmButton.textContent = early ? 'Kirim & Absen Pulang' : 'Ya, Pulang';
     }
 
+    function updateReasonCounter() {
+        reasonCounter.textContent = reason.value.length + '/1000';
+    }
+
     function showError(target, message) {
         target.textContent = message;
         target.hidden = false;
         progress.textContent = message;
+        target.focus();
     }
 
     async function submitAttendance(form, card, action) {
@@ -122,7 +132,6 @@
             hint.textContent = originalHint;
             confirmButton.textContent = originalLabel;
             showError(errorBox, error.message || 'Absensi gagal diproses. Silakan coba kembali.');
-            if (action === 'check_in') errorBox.focus();
         }
     }
 
@@ -164,7 +173,10 @@
         modalTimer = null;
         checkOutCard.focus();
     });
-    reason.addEventListener('input', () => reason.setCustomValidity(''));
+    reason.addEventListener('input', () => {
+        reason.setCustomValidity('');
+        updateReasonCounter();
+    });
     checkoutForm.addEventListener('submit', event => {
         event.preventDefault();
         if (busy || checkOutCard.disabled) return;
@@ -174,4 +186,5 @@
         if (!checkoutForm.reportValidity()) return;
         submitAttendance(checkoutForm, checkOutCard, 'check_out');
     });
+    updateReasonCounter();
 })();

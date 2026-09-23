@@ -34,6 +34,7 @@ class SecurityAttendanceLoadTest extends TestCase
 
         Carbon::setTestNow('2026-09-22 06:30:00');
         foreach ($dayEmployees as [$user, $employee, $assignment]) {
+            $this->flushSession();
             $this->actingAs($user)
                 ->post(route('employee.attendance.check-in'), $this->gps('check_in'))
                 ->assertSessionHas('success');
@@ -44,6 +45,7 @@ class SecurityAttendanceLoadTest extends TestCase
 
         Carbon::setTestNow('2026-09-22 19:00:00');
         foreach ($dayEmployees as [$user, $employee]) {
+            $this->flushSession();
             $this->actingAs($user)
                 ->patch(route('employee.attendance.check-out'), $this->gps('check_out'))
                 ->assertSessionHas('success');
@@ -57,6 +59,7 @@ class SecurityAttendanceLoadTest extends TestCase
 
         Carbon::setTestNow('2026-09-22 19:30:00');
         foreach ($nightEmployees as [$user, $employee, $assignment]) {
+            $this->flushSession();
             $this->actingAs($user)
                 ->post(route('employee.attendance.check-in'), $this->gps('check_in'))
                 ->assertSessionHas('success');
@@ -67,6 +70,7 @@ class SecurityAttendanceLoadTest extends TestCase
 
         Carbon::setTestNow('2026-09-23 07:00:00');
         foreach ($nightEmployees as [$user, $employee]) {
+            $this->flushSession();
             $this->actingAs($user)
                 ->patch(route('employee.attendance.check-out'), $this->gps('check_out'))
                 ->assertSessionHas('success');

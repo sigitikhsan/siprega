@@ -58,7 +58,8 @@ class LeaveRequestController extends Controller
                 $query->whereDate('start_date', '<=', $date);
             })
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->paginate(15)
             ->appends($filters);
 
@@ -85,6 +86,8 @@ class LeaveRequestController extends Controller
         ]);
 
         DB::transaction(function () use ($leaveRequest, $validated, $request) {
+            // Keep the lock order consistent with check-in and employee leave creation.
+            Employee::whereKey($leaveRequest->employee_id)->lockForUpdate()->firstOrFail();
             $lockedRequest = LeaveRequest::whereKey($leaveRequest->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedRequest->status !== 'pending') {
@@ -94,7 +97,6 @@ class LeaveRequestController extends Controller
             }
 
             if ($validated['decision'] === 'approved') {
-                Employee::whereKey($lockedRequest->employee_id)->lockForUpdate()->firstOrFail();
                 $endDate = $lockedRequest->start_date->copy()->addDays($lockedRequest->duration - 1);
                 $hasAttendance = Attendance::where('employee_id', $lockedRequest->employee_id)
                     ->whereBetween('attendance_date', [$lockedRequest->start_date->toDateString(), $endDate->toDateString()])

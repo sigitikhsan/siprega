@@ -9,11 +9,13 @@
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Rules\AllowedLeaveAttachment;
 use App\Services\AdminDashboardData;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -28,7 +30,7 @@ class LeaveRequestController extends Controller
         $leaveRequests = $employee->leaveRequests()->with('reviewer')
             ->when($filters['type'] ?? null, function ($query, $type) { $query->where('type', $type); })
             ->when($filters['status'] ?? null, function ($query, $status) { $query->where('status', $status); })
-            ->latest('start_date')->paginate(10)->appends($filters);
+            ->latest('start_date')->latest('id')->paginate(10)->appends($filters);
         return view('employee.leave-requests.request-list', compact('leaveRequests', 'filters'));
     }
 
@@ -50,19 +52,35 @@ class LeaveRequestController extends Controller
         $employee = $request->user()->employee()->firstOrFail();
         $start = Carbon::parse($validated['start_date']);
         $end = $start->copy()->addDays($validated['duration'] - 1);
-        $overlaps = $employee->leaveRequests()->whereIn('status', ['pending', 'approved'])
-            ->overlappingDates($start, $end)->exists();
-        if ($overlaps) throw ValidationException::withMessages(['start_date' => 'Tanggal tersebut bertabrakan dengan pengajuan lain yang masih aktif.']);
 
         $path = null;
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $path = $file->storeAs('leave-attachments/'.$employee->id, Str::uuid().'.'.$attachmentRule->extension(), 'local');
         }
-        $employee->leaveRequests()->create([
-            'type' => $validated['type'], 'start_date' => $validated['start_date'], 'duration' => $validated['duration'],
-            'reason' => $validated['reason'], 'attachment' => $path, 'status' => 'pending',
-        ]);
+
+        try {
+            DB::transaction(function () use ($employee, $validated, $start, $end, $path) {
+                // Serialize leave creation, approval, and check-in for one employee.
+                $lockedEmployee = Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
+                $overlaps = $lockedEmployee->leaveRequests()->whereIn('status', ['pending', 'approved'])
+                    ->overlappingDates($start, $end)->exists();
+                if ($overlaps) {
+                    throw ValidationException::withMessages([
+                        'start_date' => 'Tanggal tersebut bertabrakan dengan pengajuan lain yang masih aktif.',
+                    ]);
+                }
+
+                $lockedEmployee->leaveRequests()->create([
+                    'type' => $validated['type'], 'start_date' => $validated['start_date'], 'duration' => $validated['duration'],
+                    'reason' => $validated['reason'], 'attachment' => $path, 'status' => 'pending',
+                ]);
+            });
+        } catch (\Throwable $error) {
+            if ($path) Storage::disk('local')->delete($path);
+            throw $error;
+        }
+
         app(AdminDashboardData::class)->forgetLeaveRequests();
         return redirect()->route('employee.leave-requests.index')->with('success', 'Pengajuan berhasil dikirim dan menunggu keputusan admin.');
     }
@@ -77,9 +95,21 @@ class LeaveRequestController extends Controller
     public function destroy(Request $request, LeaveRequest $leaveRequest)
     {
         $this->authorizeOwner($request, $leaveRequest);
-        if ($leaveRequest->status !== 'pending') return back()->with('error', 'Hanya pengajuan yang masih menunggu yang dapat dibatalkan.');
-        if ($leaveRequest->attachment) Storage::disk('local')->delete($leaveRequest->attachment);
-        $leaveRequest->delete();
+        $result = DB::transaction(function () use ($leaveRequest) {
+            Employee::whereKey($leaveRequest->employee_id)->lockForUpdate()->firstOrFail();
+            $lockedRequest = LeaveRequest::whereKey($leaveRequest->id)->lockForUpdate()->firstOrFail();
+            if ($lockedRequest->status !== 'pending') {
+                return ['deleted' => false, 'attachment' => null];
+            }
+            $attachment = $lockedRequest->attachment;
+            $lockedRequest->delete();
+
+            return ['deleted' => true, 'attachment' => $attachment];
+        });
+        if (!$result['deleted']) {
+            return back()->with('error', 'Hanya pengajuan yang masih menunggu yang dapat dibatalkan.');
+        }
+        if ($result['attachment']) Storage::disk('local')->delete($result['attachment']);
         app(AdminDashboardData::class)->forgetLeaveRequests();
         return redirect()->route('employee.leave-requests.index')->with('success', 'Pengajuan berhasil dibatalkan.');
     }

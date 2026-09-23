@@ -128,47 +128,61 @@ class AttendanceController extends Controller
         $employee = $request->user()->employee()->firstOrFail();
         [$location, $distance] = $this->resolveLocation($position);
         $now = now();
-        $attendance = Attendance::with('workSchedule')->where('employee_id', $employee->id)
-            ->whereNotNull('check_in')->whereNull('check_out')->latest('check_in')->latest('id')->first();
 
-        if (!$attendance || !$attendance->check_in) return back()->with('error', 'Anda belum melakukan absen masuk hari ini.');
-        $schedule = $attendance->workSchedule ?: $employee->workSchedule;
-        $checkoutDate = $schedule->shift_type === 'night'
-            ? $attendance->attendance_date->copy()->addDay()->toDateString()
-            : $attendance->attendance_date->toDateString();
-        $checkoutStart = Carbon::parse($checkoutDate.' '.$schedule->check_out_start);
-        $isEarly = $now->lt($checkoutStart);
-        if ($isEarly && empty($validated['early_checkout_reason'])) {
-            return back()->with('error', 'Alasan wajib diisi karena Anda pulang sebelum pukul '.$checkoutStart->format('H:i').'.');
+        try {
+            DB::transaction(function () use ($employee, $now, $validated, $position, $distance) {
+                $lockedEmployee = Employee::with('workSchedule')->whereKey($employee->id)
+                    ->lockForUpdate()->firstOrFail();
+                $lockedAttendance = Attendance::with('workSchedule')
+                    ->where('employee_id', $lockedEmployee->id)
+                    ->whereNotNull('check_in')
+                    ->whereNull('check_out')
+                    ->latest('check_in')
+                    ->latest('id')
+                    ->lockForUpdate()
+                    ->first();
+                if (!$lockedAttendance) {
+                    throw new \DomainException('Anda belum memiliki absensi masuk yang belum diselesaikan.');
+                }
+
+                $schedule = $lockedAttendance->workSchedule ?: $lockedEmployee->workSchedule;
+                if (!$schedule) {
+                    throw new \DomainException('Jadwal absensi tidak ditemukan. Hubungi administrator.');
+                }
+
+                $checkoutDate = $schedule->shift_type === 'night'
+                    ? $lockedAttendance->attendance_date->copy()->addDay()->toDateString()
+                    : $lockedAttendance->attendance_date->toDateString();
+                $checkoutStart = Carbon::parse($checkoutDate.' '.$schedule->check_out_start);
+                $isEarly = $now->lt($checkoutStart);
+                if ($isEarly && empty($validated['early_checkout_reason'])) {
+                    throw new \DomainException('Alasan wajib diisi karena Anda pulang sebelum pukul '.$checkoutStart->format('H:i').'.');
+                }
+
+                [$isSuspicious, $riskNote] = $this->locationRisk(
+                    $position,
+                    $now,
+                    $lockedAttendance->check_in_latitude,
+                    $lockedAttendance->check_in_longitude,
+                    $lockedAttendance->check_in
+                );
+
+                $lockedAttendance->update([
+                    'check_out' => $now,
+                    'check_out_status' => $isEarly ? 'early_checkout' : 'normal',
+                    'early_checkout_reason' => $validated['early_checkout_reason'] ?? null,
+                    'check_out_latitude' => $position['latitude'],
+                    'check_out_longitude' => $position['longitude'],
+                    'check_out_accuracy' => $position['accuracy'],
+                    'check_out_distance' => $distance,
+                    'check_out_captured_at' => $position['captured_at'],
+                    'check_out_location_suspicious' => $isSuspicious,
+                    'check_out_risk_note' => $riskNote,
+                ]);
+            });
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
         }
-
-        [$isSuspicious, $riskNote] = $this->locationRisk(
-            $position,
-            $now,
-            $attendance->check_in_latitude,
-            $attendance->check_in_longitude,
-            $attendance->check_in
-        );
-
-        DB::transaction(function () use ($attendance, $now, $isEarly, $validated, $position, $distance, $isSuspicious, $riskNote) {
-            $lockedAttendance = Attendance::whereKey($attendance->id)->lockForUpdate()->firstOrFail();
-            if ($lockedAttendance->check_out) {
-                throw ValidationException::withMessages(['attendance' => 'Absen pulang sudah pernah dicatat.']);
-            }
-
-            $lockedAttendance->update([
-                'check_out' => $now,
-                'check_out_status' => $isEarly ? 'early_checkout' : 'normal',
-                'early_checkout_reason' => $validated['early_checkout_reason'] ?? null,
-                'check_out_latitude' => $position['latitude'],
-                'check_out_longitude' => $position['longitude'],
-                'check_out_accuracy' => $position['accuracy'],
-                'check_out_distance' => $distance,
-                'check_out_captured_at' => $position['captured_at'],
-                'check_out_location_suspicious' => $isSuspicious,
-                'check_out_risk_note' => $riskNote,
-            ]);
-        });
 
         app(AdminDashboardData::class)->forgetAttendance();
         return back()->with('success', 'Absen pulang berhasil dicatat pukul '.$now->format('H:i:s').'.');

@@ -113,4 +113,24 @@ class SecurityHardeningTest extends TestCase
         $this->assertTrue(Hash::check('password-baru', $employeeUser->password));
         $this->assertNotSame('employee-token-lama', $employeeUser->remember_token);
     }
+
+    public function test_password_hash_change_invalidates_an_existing_session(): void
+    {
+        $user = User::create([
+            'name' => 'Session Revocation Test',
+            'username' => 'session_revocation_test',
+            'password' => Hash::make('password-lama'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        $oldHash = $user->password;
+        $user->forceFill(['password' => Hash::make('password-baru')])->save();
+
+        $this->withSession(['password_hash_web' => $oldHash])
+            ->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+    }
 }

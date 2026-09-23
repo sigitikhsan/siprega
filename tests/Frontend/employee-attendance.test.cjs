@@ -18,14 +18,22 @@ function fixture(options = {}) {
         if (!elements.has(id)) {
             const events = {};
             const fields = {};
+            const classes = new Set();
             elements.set(id, {
-                id, disabled: false, hidden: true, required: false, value: '', textContent: '', dataset: {},
-                classList: { contains: () => modalShows > 0 },
+                id, disabled: false, hidden: true, required: false, value: '', textContent: '', dataset: {}, focused: false,
+                classList: {
+                    contains: name => name === 'show' ? modalShows > 0 : classes.has(name),
+                    toggle(name, force) {
+                        const active = force === undefined ? !classes.has(name) : !!force;
+                        if (active) classes.add(name); else classes.delete(name);
+                        return active;
+                    }
+                },
                 addEventListener: (name, handler) => { events[name] = handler; },
                 fire: (name, event = { preventDefault() {} }) => events[name](event),
                 querySelector: () => element(id + '-hint'),
                 querySelectorAll: () => [],
-                setAttribute() {}, removeAttribute() {}, focus() {},
+                setAttribute() {}, removeAttribute() {}, focus() { this.focused = true; },
                 setCustomValidity(message) { this.validationMessage = message; },
                 elements: { namedItem: name => fields[name] || (fields[name] = { value: '' }) },
                 reportValidity: () => !element('earlyCheckoutReason').required ||
@@ -81,9 +89,12 @@ test('check-in submits directly once, retaining the location and security nonce'
 test('early checkout opens a modal without collecting GPS; blank reason cannot submit', async () => {
     const f = fixture();
     f.element('checkOutCard').fire('click');
+    assert.equal(f.element('checkoutModal').classList.contains('is-early'), true);
     assert.equal(f.element('earlyReasonGroup').hidden, false);
     assert.equal(f.element('earlyCheckoutReason').required, true);
     f.element('earlyCheckoutReason').value = '   ';
+    f.element('earlyCheckoutReason').fire('input');
+    assert.equal(f.element('earlyReasonCounter').textContent, '3/1000');
     f.element('checkOutForm').fire('submit');
     await f.flush();
     assert.equal(f.counts().gpsCalls, 0);
@@ -107,10 +118,19 @@ test('normal checkout submits directly in one click without opening a modal', as
     const f = fixture({ now: '2026-09-03T16:00:00+07:00' });
     f.element('checkOutCard').fire('click');
     await f.flush();
+    assert.equal(f.element('checkoutModal').classList.contains('is-early'), false);
     assert.equal(f.element('earlyCheckoutReason').disabled, true);
     assert.equal(f.element('earlyCheckoutReason').required, false);
     assert.deepEqual(f.counts(), { gpsCalls: 1, fetchCalls: 1, modalShows: 0 });
     assert.deepEqual(f.submitted, ['checkOutForm']);
+});
+
+test('checkout failure moves keyboard focus to the checkout warning', async () => {
+    const f = fixture({ now: '2026-09-03T16:00:00+07:00', gpsError: true });
+    f.element('checkOutCard').fire('click');
+    await f.flush();
+    assert.equal(f.element('checkoutError').hidden, false);
+    assert.equal(f.element('checkoutError').focused, true);
 });
 
 test('night shift at 23:00 still requires a reason until 07:00 the next day', () => {

@@ -14,10 +14,10 @@
         .metric-card { --metric-accent: #2563eb; --metric-border: #dbe3ee; position: relative; min-height: 156px; overflow: hidden; color: #0f172a; background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 8px 24px rgba(15,23,42,.045); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
         .metric-card:hover, .metric-card:focus-visible { color: #0f172a; transform: translateY(-3px); border-color: var(--metric-border); box-shadow: 0 14px 30px rgba(15,23,42,.085); }
         .metric-card:focus-visible, .chart-mode-button:focus-visible { outline: 3px solid rgba(37,99,235,.45); outline-offset: 3px; }
-        .metric-card.theme-rose { --metric-accent: #2563eb; --metric-border: #bfdbfe; }
-        .metric-card.theme-violet { --metric-accent: #16a34a; --metric-border: #bbf7d0; }
-        .metric-card.theme-cyan { --metric-accent: #d97706; --metric-border: #fde68a; }
-        .metric-card.theme-teal { --metric-accent: #7c3aed; --metric-border: #ddd6fe; }
+        .metric-card.theme-primary { --metric-accent: #2563eb; --metric-border: #bfdbfe; }
+        .metric-card.theme-success { --metric-accent: #16a34a; --metric-border: #bbf7d0; }
+        .metric-card.theme-warning { --metric-accent: #d97706; --metric-border: #fde68a; }
+        .metric-card.theme-pending { --metric-accent: #7c3aed; --metric-border: #ddd6fe; }
         .metric-copy { min-width: 0; }
         .metric-label { color: #64748b; font-size: .86rem; font-weight: 500; }
         .metric-number-line { display: flex; align-items: baseline; gap: .5rem; min-height: 42px; }
@@ -29,8 +29,7 @@
         .metric-progress::-webkit-progress-bar { background: #e9edf3; border-radius: 999px; }
         .metric-progress::-webkit-progress-value { background: var(--metric-accent); border-radius: 999px; transition: width .3s ease; }
         .metric-progress::-moz-progress-bar { background: var(--metric-accent); border-radius: 999px; }
-        .dashboard-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 8px 24px rgba(15,23,42,.05); transition: box-shadow .22s ease, border-color .22s ease; }
-        .dashboard-panel:hover { border-color: #d7e0eb; box-shadow: 0 12px 30px rgba(15,23,42,.075); }
+        .dashboard-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; }
         .activity-row + .activity-row { border-top: 1px solid #e2e8f0; }
         .attendance-chart-wrap { position: relative; height: 230px; }
         .chart-mode-button { width: 30px; height: 30px; display: inline-grid; place-items: center; padding: 0; color: #6b6964; background: transparent; border: 1px solid transparent; border-radius: .5rem; }
@@ -46,7 +45,7 @@
             .attendance-chart-wrap { height: 210px; }
             .dashboard-panel { padding: 1rem !important; }
         }
-        @media (prefers-reduced-motion: reduce) { .metric-card, .metric-progress::-webkit-progress-value, .dashboard-panel { transition: none; } }
+        @media (prefers-reduced-motion: reduce) { .metric-card, .metric-progress::-webkit-progress-value { transition: none; } }
     </style>
 
     <div class="welcome-alert p-3 mb-4">
@@ -56,12 +55,12 @@
 
     <a class="alert alert-warning justify-content-between align-items-center text-decoration-none mb-4 {{ $statistics['pending_leave_requests'] > 0 ? 'd-flex' : 'd-none' }}" href="{{ route('admin.leave-requests.index', ['status' => 'pending']) }}">
             <span><strong>{{ $statistics['pending_leave_requests'] }}</strong> pengajuan izin/sakit menunggu persetujuan.</span>
-            <span class="fw-semibold">Tinjau →</span>
+            <span class="fw-semibold">Tinjau pengajuan</span>
     </a>
 
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-xl-3">
-            <a class="metric-card theme-rose d-block h-100 text-decoration-none" href="{{ route('admin.employees.index') }}">
+            <a class="metric-card theme-primary d-block h-100 text-decoration-none" href="{{ route('admin.employees.index') }}">
                 <span class="metric-copy d-flex flex-column h-100 p-4">
                     <span class="metric-label mb-3">Pegawai aktif</span>
                     <span class="metric-number-line"><strong class="metric-value">{{ $statistics['active_employees'] }}</strong></span>
@@ -70,7 +69,7 @@
             </a>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <a class="metric-card theme-violet d-block h-100 text-decoration-none" href="{{ route('admin.attendances.index', ['date_from' => now()->toDateString(), 'date_to' => now()->toDateString()]) }}">
+            <a class="metric-card theme-success d-block h-100 text-decoration-none" href="{{ route('admin.attendances.index', ['date_from' => now()->toDateString(), 'date_to' => now()->toDateString()]) }}">
                 <span class="metric-copy d-flex flex-column h-100 p-4">
                     <span class="metric-label mb-3">Hadir hari ini</span>
                     <span class="metric-number-line"><strong class="metric-value">{{ $statistics['attendance_today'] }}</strong><span class="metric-denominator">/ <span>{{ $statistics['active_employees'] }}</span></span></span>
@@ -79,7 +78,7 @@
             </a>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <a class="metric-card theme-cyan d-block h-100 text-decoration-none" href="{{ route('admin.attendances.index', ['date_from' => now()->toDateString(), 'date_to' => now()->toDateString(), 'check_in_status' => 'late']) }}">
+            <a class="metric-card theme-warning d-block h-100 text-decoration-none" href="{{ route('admin.attendances.index', ['date_from' => now()->toDateString(), 'date_to' => now()->toDateString(), 'check_in_status' => 'late']) }}">
                 <span class="metric-copy d-flex flex-column h-100 p-4">
                     <span class="metric-label mb-3">Terlambat</span>
                     <span class="metric-number-line"><strong class="metric-value">{{ $statistics['late_today'] }}</strong><span class="metric-denominator">/ <span>{{ $statistics['active_employees'] }}</span></span></span>
@@ -88,11 +87,11 @@
             </a>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <a class="metric-card theme-teal d-block h-100 text-decoration-none" href="{{ route('admin.leave-requests.index', ['status' => 'pending']) }}">
+            <a class="metric-card theme-pending d-block h-100 text-decoration-none" href="{{ route('admin.leave-requests.index', ['status' => 'pending']) }}">
                 <span class="metric-copy d-flex flex-column h-100 p-4">
                     <span class="metric-label mb-3">Menunggu persetujuan</span>
                     <span class="metric-number-line"><strong class="metric-value">{{ $statistics['pending_leave_requests'] }}</strong></span>
-                    <span class="metric-context metric-context--link">Tinjau pengajuan →</span>
+                    <span class="metric-context metric-context--link">Tinjau pengajuan</span>
                 </span>
             </a>
         </div>
@@ -125,7 +124,12 @@
                     <canvas id="attendanceChart" role="img" aria-label="Grafik absensi tujuh hari terakhir, membandingkan jumlah tepat waktu dan terlambat"></canvas>
                     <p class="small text-muted text-center py-5 mb-0" id="attendanceChartFallback" role="status" hidden>Grafik belum dapat ditampilkan. Data absensi tetap tersedia melalui tautan di bawah.</p>
                 </div>
-                <div class="text-end mt-3"><a class="small dashboard-action-link" href="{{ route('admin.attendances.index', ['date_from' => $attendanceChart->first()['date'], 'date_to' => $attendanceChart->last()['date']]) }}">Lihat data periode ini →</a></div>
+                @php
+                    $attendancePeriod = $attendanceChart->isNotEmpty()
+                        ? ['date_from' => data_get($attendanceChart->first(), 'date'), 'date_to' => data_get($attendanceChart->last(), 'date')]
+                        : [];
+                @endphp
+                <div class="text-end mt-3"><a class="small dashboard-action-link" href="{{ route('admin.attendances.index', $attendancePeriod) }}">Lihat data periode ini</a></div>
             </section>
             <section class="dashboard-panel panel-leave p-4 mt-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">

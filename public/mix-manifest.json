@@ -1,6 +1,8 @@
 {
-    "/js/admin-chart.js": "/js/admin-chart.js?id=67f5d0aa2e3c0b566d83",
-    "/js/employee-attendance.js": "/js/employee-attendance.js?id=a2f241fda3fe824a0264",
-    "/js/employee-schedule.js": "/js/employee-schedule.js?id=42ef597bdde71890ee36",
-    "/css/bootstrap-app.min.css": "/css/bootstrap-app.min.css?id=1bd6f61d039bb1f92171"
+    "/js/admin-chart.js": "/js/admin-chart.js?id=af5f68ade0f117e81305",
+    "/css/employee-schedule.css": "/css/employee-schedule.css?id=0b461ae82ad354b34079",
+    "/js/employee-attendance.js": "/js/employee-attendance.js?id=5cf4d9d64c5db7909efb",
+    "/js/employee-schedule.js": "/js/employee-schedule.js?id=6ee3ff3a127aa0518404",
+    "/css/bootstrap-app.min.css": "/css/bootstrap-app.min.css?id=1bd6f61d039bb1f92171",
+    "/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js": "/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js?id=2e477967e482f32e65d4"
 }

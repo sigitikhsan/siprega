@@ -73,6 +73,17 @@ class EmployeeProfileTest extends TestCase
         $this->assertNull($employee->fresh()->avatar_path);
     }
 
+    public function test_employee_cannot_read_avatar_outside_own_storage_prefix()
+    {
+        Storage::fake('local');
+        [$user, $employee] = $this->employeeProfile();
+        $foreignPath = 'profile-avatars/'.($employee->id + 1).'/foreign.webp';
+        Storage::disk('local')->put($foreignPath, 'not-the-current-employees-avatar');
+        $employee->update(['avatar_path' => $foreignPath]);
+
+        $this->actingAs($user)->get(route('employee.profile.avatar'))->assertNotFound();
+    }
+
     private function employeeProfile(): array
     {
         $schedule = WorkSchedule::create(['name' => 'Custom Profile '.uniqid(), 'shift_type' => 'fixed', 'check_in_start' => '08:00', 'check_in_end' => '08:30', 'late_tolerance' => 0, 'check_out_start' => '17:00', 'status' => 'active']);

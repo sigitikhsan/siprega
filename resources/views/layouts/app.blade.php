@@ -9,6 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Sistem Absensi') - Kantor Balmon</title>
     <link href="{{ mix('css/bootstrap-app.min.css') }}" rel="stylesheet">
+    @stack('styles')
     <style>
         :root {
             --sidebar-width: 270px;
@@ -95,11 +96,10 @@
             background: var(--warm-surface);
             border: 1px solid var(--warm-border);
             border-radius: 1rem;
-            box-shadow: 0 8px 24px rgba(15,23,42,.05);
         }
         .stat-card { overflow: hidden; }
         .stat-card .card-body { min-height: 0; }
-        a.stat-card { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+        a.stat-card { box-shadow: 0 8px 24px rgba(15,23,42,.05); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
         a.stat-card:hover { transform: translateY(-2px); color: var(--ink); background: #fff; border-color: #bfdbfe; box-shadow: 0 12px 28px rgba(15,23,42,.09); }
         .stat-icon { width: 56px; height: 56px; display: grid; place-items: center; border: 1px solid #d6e6ff; border-radius: .85rem; color: #0d5cda; background: #eff6ff; }
         .quick-arrow { color: #0a2a5f; }
@@ -138,9 +138,8 @@
             gap: .4rem;
             border-radius: .7rem;
             font-weight: 600;
-            transition: transform .18s ease, color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+            transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
         }
-        .btn:hover:not(:disabled) { transform: translateY(-1px); }
         .btn.btn-sm { min-height: 34px; border-radius: .55rem; }
         .btn-primary { background-color: var(--primary); border-color: var(--primary); }
         .btn-primary:hover, .btn-primary:focus-visible { background-color: #1259c3; border-color: #1259c3; box-shadow: 0 7px 18px rgba(23,100,220,.18); }
@@ -182,8 +181,8 @@
             background: #fff;
             border-color: #e2e8f0;
             border-radius: 1rem;
-            box-shadow: 0 8px 24px rgba(15,23,42,.05);
         }
+        .sidebar-section-label { font-size: .75rem; }
         .detail-row, .leave-row, .profile-detail + .profile-detail,
         .profile-settings-title, .profile-setting + .profile-setting,
         .employee-profile-row, .employee-profile-link + .employee-profile-link { border-color: #e2e8f0; }
@@ -289,14 +288,14 @@
         <nav class="sidebar-nav nav nav-pills flex-column gap-1 mt-3">
             @if (auth()->user()->role === 'admin')
                 <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}"><x-icon name="grid" />Dashboard</a>
-                <small class="d-block fw-normal text-white-50 fs-8 mt-1">Kelola Data Master</small>
+                <small class="d-block fw-normal text-white-50 sidebar-section-label mt-1">Kelola Data Master</small>
                 <a class="nav-link {{ request()->routeIs('admin.employees.*') ? 'active' : '' }}" href="{{ route('admin.employees.index') }}"><x-icon name="users" />Data Pegawai</a>
                 <a class="nav-link {{ request()->routeIs('admin.locations.*') ? 'active' : '' }}" href="{{ route('admin.locations.index') }}"><x-icon name="pin" />Data Lokasi</a>
                 <a class="nav-link {{ request()->routeIs('admin.attendances.*') ? 'active' : '' }}" href="{{ route('admin.attendances.index') }}"><x-icon name="clipboard" />Data Absensi</a>
-                <small class="d-block fw-normal text-white-50 fs-8 mt-1">Kelola Jadwal & Shift</small>
+                <small class="d-block fw-normal text-white-50 sidebar-section-label mt-1">Kelola Jadwal & Shift</small>
                 <a class="nav-link {{ request()->routeIs('admin.work-schedules.*') ? 'active' : '' }}" href="{{ route('admin.work-schedules.index') }}"><x-icon name="calendar" />Jadwal Kerja</a>
                 <a class="nav-link {{ request()->routeIs('admin.shift-assignments.*') ? 'active' : '' }}" href="{{ route('admin.shift-assignments.index') }}"><x-icon name="clock" />Atur Shift</a>
-                <small class="d-block fw-normal text-white-50 fs-8 mt-1">Aktivitas & Laporan</small>
+                <small class="d-block fw-normal text-white-50 sidebar-section-label mt-1">Aktivitas & Laporan</small>
                 <a class="nav-link {{ request()->routeIs('admin.leave-requests.*') ? 'active' : '' }}" href="{{ route('admin.leave-requests.index') }}"><x-icon name="file" />Pengajuan Izin/Sakit</a>
                 <a class="nav-link {{ request()->routeIs('admin.attendance-recap.*') ? 'active' : '' }}" href="{{ route('admin.attendance-recap.index') }}"><x-icon name="history" />Rekap Absensi</a>
             @else
@@ -382,7 +381,7 @@
         </div>
     </main>
 </div>
-<script src="{{ asset('vendor/bootstrap/5.3.3/bootstrap.bundle.min.js') }}" defer></script>
+<script src="{{ mix('vendor/bootstrap/5.3.3/bootstrap.bundle.min.js') }}" defer></script>
 <script>
     (() => {
         const shell = document.querySelector('.app-shell');
@@ -410,6 +409,14 @@
         overlay.addEventListener('click', () => {
             shell.classList.remove('sidebar-open');
             updateState();
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && mobile() && shell.classList.contains('sidebar-open')) {
+                shell.classList.remove('sidebar-open');
+                updateState();
+                toggle.focus();
+            }
         });
 
         window.addEventListener('resize', () => {

@@ -6,7 +6,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { timeline, markers } from './schedule-time';
-import '../css/employee-schedule.css';
 
 const rootElement = document.getElementById('employeeScheduleTicker');
 
@@ -68,7 +67,7 @@ function ScheduleTicker({ data, anchor }) {
                             <h2>{data.scheduleName || 'Informasi Kerja'}</h2>
                             {data.shiftType && <span className="schedule-ticker__badge">{shiftLabels[data.shiftType] || 'Jadwal'}</span>}
                         </div>
-                        <p>{format(Date.parse(data.shiftDate), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Tanggal shift</p>
+                        <p>{format(data.shiftDateValue, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Tanggal shift</p>
                     </div>
                 </div>
                 <div className="schedule-ticker__clock" aria-label="Waktu saat ini">
@@ -105,7 +104,26 @@ function ScheduleTicker({ data, anchor }) {
 }
 
 if (rootElement) {
-    const data = JSON.parse(rootElement.dataset.schedule);
-    const anchor = { server: Date.parse(data.serverNow), monotonic: performance.now() };
-    createRoot(rootElement).render(<ScheduleTicker data={data} anchor={anchor} />);
+    try {
+        const data = JSON.parse(rootElement.dataset.schedule || '{}');
+        const serverNow = Date.parse(data.serverNow);
+        const shiftDateValue = Date.parse(data.shiftDate);
+        const validState = Object.prototype.hasOwnProperty.call(stateMessages, data.state) || data.state === 'scheduled';
+        const validSchedule = data.state !== 'scheduled' || (
+            Number.isFinite(Date.parse(data.startsAt)) && Number.isFinite(Date.parse(data.endsAt))
+        );
+
+        if (!Number.isFinite(serverNow) || !Number.isFinite(shiftDateValue) || !validState || !validSchedule) {
+            throw new Error('Payload jadwal tidak valid.');
+        }
+
+        data.shiftDateValue = shiftDateValue;
+        const anchor = { server: serverNow, monotonic: performance.now() };
+        createRoot(rootElement).render(<ScheduleTicker data={data} anchor={anchor} />);
+    } catch (error) {
+        rootElement.setAttribute('data-schedule-error', 'true');
+        const fallback = rootElement.querySelector('p');
+        if (fallback) fallback.textContent = 'Informasi jadwal belum dapat dimuat. Muat ulang halaman atau hubungi administrator.';
+        console.error('Ticker jadwal tidak dapat dimuat:', error);
+    }
 }

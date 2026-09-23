@@ -62,6 +62,17 @@ class AdminProfileAvatarTest extends TestCase
             ->assertSessionHasErrors(['name', 'username', 'avatar']);
     }
 
+    public function test_admin_cannot_read_avatar_outside_own_storage_prefix()
+    {
+        Storage::fake('local');
+        $admin = $this->admin();
+        $foreignPath = 'admin-profile-avatars/'.($admin->id + 1).'/foreign.webp';
+        Storage::disk('local')->put($foreignPath, 'not-the-current-admin-avatar');
+        $admin->update(['avatar_path' => $foreignPath]);
+
+        $this->actingAs($admin)->get(route('admin.profile.avatar'))->assertNotFound();
+    }
+
     private function admin(): User
     {
         return User::create([

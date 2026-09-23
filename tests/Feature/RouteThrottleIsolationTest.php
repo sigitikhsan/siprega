@@ -26,6 +26,19 @@ class RouteThrottleIsolationTest extends TestCase
             ['admin.profile.update', 'throttle:10,1,admin-profile-update:'],
             ['employee.leave-requests.attachment', 'throttle:12,1,employee-leave-attachment:'],
             ['admin.leave-requests.attachment', 'throttle:12,1,admin-leave-attachment:'],
+            ['admin.attendance-recap.export', 'throttle:3,1,attendance-export:'],
+            ['admin.employees.store', 'throttle:20,1,admin-employees-write:'],
+            ['admin.employees.update', 'throttle:20,1,admin-employees-write:'],
+            ['admin.employees.destroy', 'throttle:20,1,admin-employees-write:'],
+            ['admin.work-schedules.store', 'throttle:20,1,admin-work-schedules-write:'],
+            ['admin.locations.store', 'throttle:20,1,admin-locations-write:'],
+            ['admin.shift-assignments.store', 'throttle:20,1,admin-shift-assignments-write:'],
+            ['admin.attendances.correction.update', 'throttle:10,1,admin-attendance-correction:'],
+            ['admin.leave-requests.review', 'throttle:10,1,admin-leave-review:'],
+            ['admin.profile.password.update', 'throttle:5,1,admin-password-update:'],
+            ['employee.leave-requests.store', 'throttle:6,1,employee-leave-store:'],
+            ['employee.leave-requests.destroy', 'throttle:10,1,employee-leave-destroy:'],
+            ['employee.profile.password.update', 'throttle:5,1,employee-password-update:'],
         ];
     }
 }

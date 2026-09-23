@@ -37,7 +37,9 @@ class LeaveRequestAuthorizationTest extends TestCase
         $leave = LeaveRequest::create(['employee_id' => $employee->id, 'type' => 'sick', 'start_date' => today()->addDay(), 'duration' => 1, 'reason' => 'Memerlukan pemeriksaan kesehatan', 'attachment' => $path, 'status' => 'pending']);
 
         $this->actingAs($owner)->get(route('employee.leave-requests.attachment', $leave))->assertOk();
+        $this->flushSession();
         $this->actingAs($otherUser)->get(route('employee.leave-requests.attachment', $leave))->assertForbidden();
+        $this->flushSession();
         $this->actingAs($admin)->get(route('admin.leave-requests.attachment', $leave))->assertOk();
 
         Storage::disk('local')->put('outside/evidence.pdf', '%PDF-outside');

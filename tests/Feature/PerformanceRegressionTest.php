@@ -139,6 +139,7 @@ class PerformanceRegressionTest extends TestCase
             ->assertDontSee('js/app.js')
             ->assertSee('js/employee-attendance.js?id=', false)
             ->assertSee('css/bootstrap-app.min.css');
+        $this->flushSession();
         $this->actingAs($this->user('admin'))->get(route('admin.dashboard'))
             ->assertOk()->assertSee('js/admin-chart.js')->assertDontSee('js/app.js')
             ->assertDontSee('js/employee-attendance.js')
@@ -151,6 +152,7 @@ class PerformanceRegressionTest extends TestCase
             ->assertDontSee('/dashboard/live', false)
             ->assertDontSee('if (!window.Chart) return;', false)
             ->assertDontSee('metric-icon');
+        $this->flushSession();
         $this->get(route('login'))->assertOk()->assertDontSee('cdn.jsdelivr.net')
             ->assertDontSee('js/app.js')
             ->assertSee('css/bootstrap-app.min.css');

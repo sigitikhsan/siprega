@@ -11,10 +11,10 @@
     <link href="{{ mix('css/bootstrap-app.min.css') }}" rel="stylesheet">
     <style>
         :root { --navy: #1764dc; --navy-dark: #1259c3; --blue: #1764dc; --warm-bg: #f8fafc; --warm-surface: #fff; --warm-border: #e2e8f0; --muted: #64748b; }
-        body { min-height: 100vh; margin: 0; color: #0f172a; background: radial-gradient(circle at 15% 15%, #dbeafe 0, transparent 34%), var(--warm-bg); line-height: 1.55; }
+        body { min-height: 100vh; margin: 0; color: #0f172a; background: var(--warm-bg); line-height: 1.55; }
         .login-page { min-height: 100vh; display: grid; place-items: center; }
         .login-shell { width: min(100%, 1040px); min-height: 620px; margin: auto; overflow: hidden; background: var(--warm-surface); border: 1px solid var(--warm-border); border-radius: 1.25rem; box-shadow: 0 24px 65px rgba(8,39,90,.12); }
-        .brand-panel { position: relative; display: flex; min-height: 620px; flex-direction: column; justify-content: space-between; padding: 3rem; overflow: hidden; color: #0f172a; background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%); }
+        .brand-panel { position: relative; display: flex; min-height: 620px; flex-direction: column; justify-content: space-between; padding: 3rem; overflow: hidden; color: #0f172a; background: #eff6ff; }
         .brand-mark { width: 62px; height: 54px; display: grid; flex: 0 0 62px; place-items: center; overflow: hidden; background: #fff; border: 1px solid rgba(255,255,255,.8); border-radius: .7rem; }
         .brand-mark img { width: 100%; height: 100%; object-fit: contain; }
         .brand-copy { max-width: 420px; }
@@ -113,7 +113,7 @@
                 </form>
                 @php
                     $adminWhatsApp = preg_replace('/\D+/', '', config('services.whatsapp.admin_number', ''));
-                    $whatsAppMessage = "Halo Admin, saya ingin mengajukan bantuan akses akun SiHadir.\n\nNama: \nPosisi: \nKendala: ";
+                    $whatsAppMessage = "Halo Admin, saya ingin mengajukan bantuan akses akun SiPrega.\n\nNama: \nPosisi: \nKendala: ";
                     $whatsAppUrl = $adminWhatsApp
                         ? 'https://wa.me/'.$adminWhatsApp.'?text='.rawurlencode($whatsAppMessage)
                         : '#';
